@@ -1,11 +1,22 @@
 from django.urls import path
 from .views import *
 urlpatterns = [
+    ####---------------------------AUth & Registration
     path('UserSendOTP',UserSendOTP.as_view(),name='UserSendOTP'),
     path('VerifyOTP', VerifyOTP.as_view(), name='VerifyOTP'),
     path('EmployeesList',EmployeesList.as_view(), name='EmployeesList'),
     path('EmployeeTokenRefreshView',EmployeeTokenRefreshView.as_view(), name='EmployeeTokenRefreshView'),
-    path('EmployeeVerification',EmployeeVerification.as_view(), name='EmployeeVerification'),
+    path('AdhaarOTPSent',AdhaarOTPSent.as_view(), name='AdhaarOTPSent'),
+    path('AdhaarOTPVerification',AdhaarOTPVerification.as_view(), name='AdhaarOTPVerification'),
+    path('VerifyPan',VerifyPan.as_view(), name='VerifyPan'),
+    path('FaceLivelinessAPI',FaceLivelinessAPI.as_view(), name='FaceLivelinessAPI'),
+    path('VideoKyc',VideoKyc.as_view(), name='VideoKyc'),
+    path('EmployeeBankInfo',EmployeeBankInfo.as_view(), name='EmployeeBankInfo'),
+#########################33------------------------------Home Screens------------------------------###########
+    path('UserProfileView',UserProfileView.as_view(), name='UserProfileView'),
+   
+
+
     path('GetEwaCheckeer',GetEwaCheckeer.as_view(), name='GetEwaCheckeer'),
     path('GetEwaBalance',GetEwaBalance.as_view(),name='GetEwaBalance'),
     ]
