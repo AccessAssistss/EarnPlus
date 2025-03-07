@@ -27,24 +27,19 @@ class AssociatedEmployees(models.Model):
     dob = models.DateField(null=True, blank=True) 
     department = models.CharField(max_length=100, null=True, blank=True)
     date_joined = models.DateField(null=True, blank=True)
+    salary_date = models.DateField(null=True, blank=True)
     salary = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  
     address = models.TextField(null=True, blank=True)
     is_active = models.BooleanField(default=True) 
+    is_associated = models.BooleanField(default=True)
     is_deleted = models.BooleanField(default=False)  
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return f"{self.employee_name} ({self.employee_id})"
-    def get_age(self):
-        """Calculate employee's age"""
-        if self.dob:
-            return (timezone.now().date() - self.dob).days // 365
-        return None
-    
 #####################-------------------------Bank Details
 class BankDetails(models.Model):
     associated_employeer = models.ForeignKey(AssociatedEmployees, on_delete=models.CASCADE,null=True,blank=True)
+    salaried_employee= models.ForeignKey('gigworkers.GigEmployee', on_delete=models.CASCADE,null=True,blank=True)
     bank_name = models.CharField(max_length=100, null=True, blank=True)
     account_number = models.CharField(max_length=20, null=True, blank=True)
     account_holder_name = models.CharField(max_length=100, null=True, blank=True)
