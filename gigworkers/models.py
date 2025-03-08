@@ -96,7 +96,7 @@ class SalaryDetails(models.Model):
 
     def get_latest_salary_record(self):
         """Fetch the latest salary record from SalaryHistory for this employee."""
-        return SalaryHistory.objects.filter(employee=self.employee).order_by('-salary_date').first()
+        return SalaryHistory.objects.filter(employee=self.employee).order_by('-last_salary_date').first()
 
     def calculate_earned_wages(self):
         """Calculate earned wages based on the days worked since the last salary or withdrawal."""
@@ -106,7 +106,7 @@ class SalaryDetails(models.Model):
         if self.last_withdrawal_date:
             days_worked = (timezone.now().date() - self.last_withdrawal_date).days
         else:
-            days_worked = (timezone.now().date() - latest_salary_record.salary_date).days
+            days_worked = (timezone.now().date() - latest_salary_record.last_salary_date).days
 
         #---------------------------Calculate earned wages
         self.earned_wages = latest_salary_record.daily_salary * days_worked
