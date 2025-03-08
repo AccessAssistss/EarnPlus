@@ -18,5 +18,6 @@ urlpatterns = [
 
 
     path('GetEwaCheckeer',GetEwaCheckeer.as_view(), name='GetEwaCheckeer'),
-    path('GetEwaBalance',GetEwaBalance.as_view(),name='GetEwaBalance'),
+    path('CheckEWABalance',CheckEWABalance.as_view(),name='CheckEWABalance'),
+    path('RequestEWAAmount',RequestEWAAmount.as_view(), name='RequestEWAAmount'),
     ]
