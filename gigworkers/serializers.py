@@ -79,3 +79,18 @@ class EmployeerListSerializer(serializers.ModelSerializer):
         fields = ['id', 'name','company_profile']
 
 ##################------------------Employee List---------------------##############
+
+class EWATransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EWATransaction
+        fields = ['id',
+            'transaction_id',
+            'amount',
+            'withdrawal_date',
+            'due_date',
+            'interest_rate',
+            'interest_amount',
+            'total_payable',
+            'status',
+            'repayment_status',
+        ]

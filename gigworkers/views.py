@@ -655,7 +655,7 @@ class GetEwaCheckeer(APIView):
     
 
 #################----------------------Get EWA Balance-------------------#################
-class GetEwaBalance(APIView):
+class CheckEWABalance(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, format=None):
         user = request.user
@@ -669,7 +669,6 @@ class GetEwaBalance(APIView):
         try:
             employee=get_object_or_404(GigEmployee,user=user,is_affilated=True)
             salary_details = SalaryDetails.objects.filter(employee=employee).first()
-
             if not salary_details:
                 return Response({"error": "Employee is not active or has no salary details"}, status=status.HTTP_404_NOT_FOUND)
             earned_wages = salary_details.calculate_earned_wages()
@@ -678,36 +677,87 @@ class GetEwaBalance(APIView):
             return handle_exception(e,"An error occurred while fetching EWA balance")
         
 ######################-------------------------Request EWA Balance by Employee
-class RequestEwaBalance(APIView):
+razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+class RequestEWA(APIView):
     permission_classes = [IsAuthenticated]
+    @transaction.atomic
     def post(self, request, format=None):
         user = request.user
         provided_access_token = request.META.get('HTTP_AUTHORIZATION', '').split(' ')[-1]
-
-        if user.access_token!= provided_access_token:
+        if user.access_token != provided_access_token:
             return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        if user.user_type!= "gigaff":
-            return Response({'error': 'Only Giugs can view Request'}, status=status.HTTP_403_FORBIDDEN)
-        amount_requested =  Decimal(request.data.get("amount"))
+        if user.user_type != "gigaff":
+            return Response({'error': 'Only gig employees can request EWA.'}, status=status.HTTP_403_FORBIDDEN)
+
         try:
-            employee=get_object_or_404(GigEmployee,user=user)
-            salary_details = get_object_or_404(SalaryDetails, employee=employee)
-            if EWARequest.objects.filter(employee=employee, status__in=["pending", "approved", "disbursed"]).exists():
-                return Response({"error": "An active EWA request already exists."}, status=status.HTTP_400_BAD_REQUEST)
+            employee = get_object_or_404(GigEmployee, user=user)
+            if not employee.is_eligible_for_ewa():
+                return Response({'error': 'You are not eligible for Earned Wage Access (EWA).'}, status=status.HTTP_403_FORBIDDEN)
 
-            if amount_requested <= 0:
-                return Response({"error": "Invalid request amount"}, status=status.HTTP_400_BAD_REQUEST)
-            if amount_requested > salary_details.ewa_limit:
-                return Response({"error": "Requested amount exceeds available earned wages"}, status=status.HTTP_400_BAD_REQUEST)
-            ewa_request = EWARequest.objects.create(employee=employee, amount_requested=amount_requested)
-            upfront_interest = ewa_request.calculate_interest()
-            ewa_request.upfront_interest = upfront_interest
-            ewa_request.save()
+            salary_details = SalaryDetails.objects.filter(employee=employee).first()
+            if not salary_details:
+                return Response({"error": "Employee is not active or has no salary details."}, status=status.HTTP_404_NOT_FOUND)
 
-            # Update available EWA balance
-            salary_details.ewa_limit -= amount_requested
-            salary_details.save()
-            return Response({"message": "EWA request submitted successfully", "request_id": ewa_request.id}, status=status.HTTP_201_CREATED)
+            salary_details.calculate_earned_wages()
+            requested_amount = Decimal(request.data.get('amount'))
+            if requested_amount > salary_details.ewa_limit:
+                return Response({"error": "Requested amount exceeds EWA limit."}, status=status.HTTP_400_BAD_REQUEST)
+
+            salary_details.update_ewa_limit_after_withdrawal(requested_amount)
+            #-------Create EWA transaction
+            ewa_transaction = EWATransaction.objects.create(
+                employee=employee,
+                amount=requested_amount,
+                due_date=salary_details.calculate_due_date()
+            )
+            bank_detail=get_object_or_404(BankDetails,employee=employee)
+            ewa_transaction.calculate_interest()
+
+            #-------------Initiate Razorpay payout
+            payout_response = razorpay_client.payout.create({
+                "account_number": bank_detail.account_number,  
+                "fund_account_id": employee.razorpay_fund_account_id,  
+                "amount": int(requested_amount * 100), 
+                "currency": "INR",
+                "mode": "IMPS",
+                "purpose": "salary",
+                "queue_if_low_balance": True,
+                "reference_id": str(ewa_transaction.transaction_id),
+            })
+
+            #----------------Check if payout was successful
+            if payout_response.get('id'):
+                ewa_transaction.razorpay_payment_id = payout_response['id']
+                ewa_transaction.status = 'COMPLETED'
+                ewa_transaction.save()
+                return Response({
+                    'message': 'EWA request initiated and amount credited.',
+                    'transaction_id': ewa_transaction.transaction_id,
+                    'amount': requested_amount,
+                    'ewa_limit_remaining': salary_details.ewa_limit,
+                }, status=status.HTTP_200_OK)
+            else:
+                # If payout fails, raise an exception to trigger a rollback
+                raise Exception("Failed to initiate payout.")
+
         except Exception as e:
-            return handle_exception(e,"An error occurred while requesting EWA Balance")
+            return handle_exception(e,"An error occcured while making payouts")
+    def get(self,request,format=None):
+        user = request.user
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION', '').split(' ')[-1]
+        if user.access_token != provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if user.user_type != "gigaff":
+            return Response({'error': 'Only gig employees can request EWA.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            employee = get_object_or_404(GigEmployee, user=user)
+            ewa_transactions = EWATransaction.objects.filter(employee=employee).order_by('-withdrawal_date')
+            paginator=CurrentNewsPagination()
+            paginated_transactions=paginator.paginate_queryset(ewa_transactions,request)
+            serializer = EWATransactionSerializer(paginated_transactions, many=True)
+            return Response({'status':"sucees","data": serializer.data},status=status.HTTP_200_OK)
+        except Exception as e:
+            return handle_exception(e,"An error occurred while fetching EWA Transactions details")
