@@ -81,9 +81,8 @@ class EmployeeVerification(models.Model):
 class SalaryHistory(models.Model):
     """Tracks past salaries and payments for employees"""
     employee = models.ForeignKey(GigEmployee, on_delete=models.CASCADE,null=True,blank=True)
-    salary_amount = models.DecimalField(max_digits=10, decimal_places=2) 
-    last_salary_date = models.DateField(null=True, blank=True)
     daily_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Salary per day
+    salary_date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)  
 
 class SalaryDetails(models.Model):
@@ -94,30 +93,46 @@ class SalaryDetails(models.Model):
     last_withdrawal_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Track the last withdrawal amount
     last_updated = models.DateTimeField(auto_now=True)  # Timestamp when the record was last updated
 
-    def get_latest_salary_record(self):
-        """Fetch the latest salary record from SalaryHistory for this employee."""
-        return SalaryHistory.objects.filter(employee=self.employee).order_by('-last_salary_date').first()
+    def get_daily_salary_records(self, start_date, end_date):
+        """Fetch daily salary records for the employee between two dates."""
+        return SalaryHistory.objects.filter(
+            employee=self.employee,
+            salary_date__gte=start_date,
+            salary_date__lte=end_date
+        )
 
     def calculate_earned_wages(self):
-        """Calculate earned wages based on the days worked since the last salary or withdrawal."""
-        latest_salary_record = self.get_latest_salary_record()
-        if not latest_salary_record:
-            return 0  
+        """Calculate earned wages based on daily salary data since the last salary or withdrawal."""
         if self.last_withdrawal_date:
-            days_worked = (timezone.now().date() - self.last_withdrawal_date).days
+            start_date = self.last_withdrawal_date
         else:
-            days_worked = (timezone.now().date() - latest_salary_record.last_salary_date).days
+            last_salary_record = SalaryHistory.objects.filter(
+                employee=self.employee,
+                daily_salary__gt=0  
+            ).order_by('-salary_date').first()
+            print(f"Last salary record :{last_salary_record}")
+            if not last_salary_record:
+                return 0
+            start_date = last_salary_record.salary_date
+            print(f"Salary START dATE :{start_date}")
 
-        #---------------------------Calculate earned wages
-        self.earned_wages = latest_salary_record.daily_salary * days_worked
+        #------------Fetch daily salary records since the start date
+        daily_salary_records = self.get_daily_salary_records(start_date, timezone.now().date())
+        print(f"Daily salary records :{daily_salary_records}")
 
-        #----------------------------Apply EWA Cap (50% - 70% of earned wages)
-        min_cap = Decimal(0.5) * self.earned_wages
-        max_cap = Decimal(0.7) * self.earned_wages
+        #----------------Calculate earned wages
+        self.earned_wages = sum(record.daily_salary for record in daily_salary_records)
+        ew=self.earned_wages
+        print(f"Earned Wages :{ew}")
+
+        #--------------Apply EWA Cap (50% - 70% of earned wages)
+        min_cap = Decimal('0.5') * self.earned_wages
+        max_cap = Decimal('0.7') * self.earned_wages
         self.ewa_limit = max(min_cap, max_cap)
 
         self.save()
         return self.earned_wages
+
 
     def update_ewa_limit_after_withdrawal(self, withdrawal_amount):
         """Update the EWA limit after a withdrawal."""
