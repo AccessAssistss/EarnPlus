@@ -86,8 +86,16 @@ class VerifyOTP(APIView):
             user = CustomUser.objects.filter(mobile=mobile, user_type=user_type).first()
             is_existing_user = GigEmployee.objects.filter(user=user).exists()
 
-            # Check if the user has visited the employer screen
+            #-----------------Check if the user has visited the employer screen
             is_screen_visited = GigEmployee.objects.filter(user=user).first()
+            print(f"Gig Intsance :{is_screen_visited}")
+            is_adhars=EmployeeVerification.objects.filter(employee=is_screen_visited).first()
+            print(f"Adhar :{is_adhars}")
+            adhar_check= is_adhars.aadhar_verified if is_adhars else False
+            pan_check=is_adhars.pan_verified if is_adhars else False
+            video_check=is_adhars.video_verified if is_adhars else False
+            selfie_check=is_adhars.selfie_verified if is_adhars else False
+            print(f"Adhar :{adhar_check} Pan Check :{pan_check} Video Check :{video_check} Selfie Check :{selfie_check}")
             screen_check = is_screen_visited.is_employer_screen if is_screen_visited else False
 
             ######------------------Check if the user is part of an employer
