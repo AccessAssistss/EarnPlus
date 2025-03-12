@@ -202,10 +202,10 @@ import os
 
 
 ####-----Firebase Setup
-FIREBASE_CREDENTIALS = os.environ.get('FIREBASE_CREDENTIALS')
+#FIREBASE_CREDENTIALS = os.environ.get('FIREBASE_CREDENTIALS')
 
-cred = credentials.Certificate(FIREBASE_CREDENTIALS)
-firebase_admin.initialize_app(cred)
+#cred = credentials.Certificate(FIREBASE_CREDENTIALS)
+#firebase_admin.initialize_app(cred)
 
 ##################-------------
 RAZORPAY_KEY_ID="asas"

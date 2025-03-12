@@ -59,7 +59,7 @@ class AddEmployeeSerializer(serializers.ModelSerializer):
         model = AssociatedEmployees
         fields = ['id',
             'employee_name', 'employee_id', 'email', 'phone_number', 
-            'designation', 'dob', 'department', 'date_joined', 
+            'designation', 'dob', 'department', 'date_joined', 'employment_type','payment_cycle'
             'salary', 'address'
         ]
     
