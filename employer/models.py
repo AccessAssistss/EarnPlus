@@ -19,6 +19,19 @@ class Employeer(models.Model):
 #######--------------------------------Employeer Associated
 class AssociatedEmployees(models.Model):
     employeer = models.ForeignKey(Employeer, on_delete=models.CASCADE,null=True,blank=True)
+    EMPLOYMENT_TYPE_CHOICES = [
+        ('SALARIED', 'Salaried Employee'),
+        ('CONTRACTUAL_FIXED', 'Contractual with Fixed Salary'),
+        ('CONTRACTUAL_VARIABLE', 'Contractual with Variable Income'),
+        ('GIG_WORKER', 'Gig Worker with Variable Income')
+    ]
+    payment_cycle = models.CharField(max_length=20, choices=[
+        ('DAILY', 'Daily'),
+        ('WEEKLY', 'Weekly'),
+        ('BIWEEKLY', 'Bi-Weekly'),
+        ('MONTHLY', 'Monthly')
+    ], default='MONTHLY')
+    employment_type = models.CharField(max_length=50, choices=EMPLOYMENT_TYPE_CHOICES, default='SALARIED')
     employee_name = models.CharField(max_length=100, null=True, blank=True)
     employee_id = models.CharField(max_length=100, unique=True)
     email = models.EmailField(max_length=100, null=True, blank=True)

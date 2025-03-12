@@ -31,7 +31,7 @@ class GigEmployee(models.Model):
     date_joined = models.DateField(null=True, blank=True)
     salary = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  
     salary_date = models.DateField(null=True, blank=True) ###----For AFFILATED
-    payment_cycle = models.DateField(null=True, blank=True) ##---For Nong Affliated
+    payment_cycle = models.IntegerField(default=30, help_text="Payment cycle in days")
     address = models.TextField(null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -61,6 +61,37 @@ class GigEmployee(models.Model):
         if self.is_on_probation or self.has_default_history:
             return False
         return True
+    def get_ewa_cap_percentage(self):
+        """Get the EWA cap percentage based on worker type."""
+        if self.is_affilated:
+            #---------Employees: 50%-70% of earned wages
+            return (Decimal('0.5'), Decimal('0.7'))
+        else:
+            #-------------Gig Workers: 40%-70% of accrued income
+            return (Decimal('0.4'), Decimal('0.7'))
+    
+    def get_daily_rate(self):
+        """Calculate daily rate based on monthly salary."""
+        if self.salary:
+            return self.salary / Decimal('30')
+        return Decimal('0')
+    
+    def calculate_next_payment_date(self):
+        """Calculate the next payment date based on payment cycle."""
+        if self.is_affilated and self.salary_date:
+            #------------For affiliated employees with fixed salary date
+            today = timezone.now().date()
+            next_date = self.salary_date.replace(month=today.month)
+            if next_date < today:
+                if today.month == 12:
+                    next_date = next_date.replace(year=today.year+1, month=1)
+                else:
+                    next_date = next_date.replace(month=today.month+1)
+            return next_date
+        else:
+            #-------------For non-affiliated workers with variable payment cycle
+            return timezone.now().date() + timedelta(days=self.payment_cycle)
+
     
 
 ####---------------------Employee Verifications
@@ -128,11 +159,13 @@ class SalaryDetails(models.Model):
         ew=self.earned_wages
         print(f"Earned Wages :{ew}")
 
-        #--------------Apply EWA Cap (50% - 70% of earned wages)
-        min_cap = Decimal('0.5') * self.earned_wages
-        max_cap = Decimal('0.7') * self.earned_wages
-        self.ewa_limit = max(min_cap, max_cap)
-
+        min_cap_pct, max_cap_pct = self.employee.get_ewa_cap_percentage()
+        min_cap = min_cap_pct * self.earned_wages
+        max_cap = max_cap_pct * self.earned_wages
+        
+        #-------------------Set the EWA limit to the appropriate cap
+        self.ewa_limit = min(max_cap, self.earned_wages)  # Cannot exceed earned wages
+        
         self.save()
         return self.earned_wages
 
@@ -188,6 +221,10 @@ class EWATransaction(models.Model):
         ('PAID', 'Fully Paid'),
         ('OVERDUE', 'Overdue'),
     )
+    INTEREST_CHARGING_METHOD = (
+        ('PRE_UTILIZATION', 'Pre-Utilization'),
+        ('POST_UTILIZATION', 'Post-Utilization'),
+    )
     
     transaction_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     employee = models.ForeignKey(GigEmployee, on_delete=models.CASCADE, related_name='ewa_transactions')
@@ -201,6 +238,7 @@ class EWATransaction(models.Model):
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='INITIATED')
     repayment_status = models.CharField(max_length=20, choices=REPAYMENT_STATUS, default='PENDING')
+    interest_charging_method = models.CharField(max_length=20, choices=INTEREST_CHARGING_METHOD, default='POST_UTILIZATION')
     
     #------------------Payment details
     razorpay_payment_id = models.CharField(max_length=100, null=True, blank=True)
@@ -210,22 +248,52 @@ class EWATransaction(models.Model):
         return f"EWA Transaction: {self.employee.name} - ₹{self.amount} - {self.status}"
 
     def calculate_interest(self):
-        """Calculate interest based on 0.4% per week"""
+        """Calculate interest based on daily interest rate"""
         if not self.due_date:
             return 0
             
         days_until_due = (self.due_date - self.withdrawal_date.date()).days
-        weeks = days_until_due / 7  # Convert days to weeks
         
-        interest = round(self.amount * (self.interest_rate / 100) * weeks, 2)
-        print(f"Interest is :{interest}")
+        #----------------Calculate interest based on daily rate
+        interest = round(self.amount * self.interest_rate * days_until_due, 2)
         self.interest_amount = interest
-        self.total_payable = self.amount + interest
-        print(f"Total Payable amount is :{self.total_payable}")
-        self.save()
         
+        if self.interest_charging_method == 'PRE_UTILIZATION':
+            #---------------Deduct interest upfront
+            self.prepaid_interest = interest
+            self.total_payable = self.amount  # User only needs to repay principal
+        else:
+            #----------------------------POST_UTILIZATION - interest charged at repayment
+            self.prepaid_interest = Decimal('0')
+            self.total_payable = self.amount + interest
+            
+        self.save()
         return self.interest_amount
     
+    def calculate_early_repayment_refund(self, repayment_date):
+        """Calculate interest refund if paid early (for PRE_UTILIZATION charging)"""
+        if self.interest_charging_method != 'PRE_UTILIZATION' or repayment_date >= self.due_date:
+            return 0
+            
+        # Calculate unused days
+        unused_days = (self.due_date - repayment_date).days
+        
+        # Calculate interest for unused days
+        refund = round(self.amount * self.interest_rate * unused_days, 2)
+        
+        # Cannot refund more than pre-paid
+        return min(refund, self.prepaid_interest)
+    def is_eligible_for_withdraw(self):
+        """Check if the transaction is eligible for withdrawal based on employee eligibility and EWA limit"""
+        if not self.employee.is_eligible_for_ewa():
+            return False
+            
+        #---------------------Check if the withdrawal amount is within the EWA limit
+        try:
+            salary_details = SalaryDetails.objects.get(employee=self.employee)
+            return self.amount <= salary_details.ewa_limit
+        except SalaryDetails.DoesNotExist:
+            return False
 
 # ------------------------------ EWA Repayment Model
 class EWARepayment(models.Model):
@@ -233,6 +301,7 @@ class EWARepayment(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_date = models.DateTimeField(auto_now_add=True)
     payment_method = models.CharField(max_length=50, default='RAZORPAY')
+    interest_refund = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     razorpay_payment_id = models.CharField(max_length=100, null=True, blank=True)
     
     def __str__(self):
@@ -248,10 +317,13 @@ class EWARepayment(models.Model):
         """Update the transaction's repayment status based on total repayments"""
         transaction = self.transaction
         
-        # Get total repaid amount
+        # Get total repaid amount (including any refunded interest for pre-utilization charging)
         total_repaid = sum(payment.amount for payment in transaction.repayments.all())
+        total_refunded = sum(payment.interest_refund for payment in transaction.repayments.all())
         
-        if total_repaid >= transaction.total_payable:
+        effective_payable = transaction.total_payable - total_refunded
+        
+        if total_repaid >= effective_payable:
             transaction.repayment_status = 'PAID'
         elif total_repaid > 0:
             transaction.repayment_status = 'PARTIAL'
