@@ -197,7 +197,7 @@ class SalaryDetails(models.Model):
             return timezone.now().date() + timedelta(days=30)
 
     def __str__(self):
-        return f"Salary for {self.employee.name} - {self.salary_amount}"
+        return f"Salary for {self.employee.name}"
 
 ###############################----------------EWA Requests   
 class EWATransaction(models.Model):
