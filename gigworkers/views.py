@@ -23,7 +23,6 @@ STATIC_OTP = 612743
 
 class UserSendOTP(APIView):
     permission_classes = [AllowAny]
-
     def post(self, request, format=None):
         user_type = request.data.get('user_type','gigaff')
         mobile = request.data.get('mobile')
@@ -60,62 +59,86 @@ class UserSendOTP(APIView):
 #################------------------------------------------Verify Otp-------------------###############
 class VerifyOTP(APIView):
     permission_classes = [AllowAny]
+
     def post(self, request, format=None):
-        mobile = request.data.get("mobile")
-        otp = request.data.get("otp")
-        user_type = request.data.get("user_type")
+        try:
+            mobile = request.data.get("mobile")
+            otp = request.data.get("otp")
+            user_type = request.data.get("user_type")
 
-        if not mobile or not otp or not user_type:
-            return Response({"error": "Mobile number, OTP, and user type are required"}, status=status.HTTP_400_BAD_REQUEST)
+            if not mobile or not otp or not user_type:
+                return Response({"error": "Mobile number, OTP, and user type are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if mobile == TEST_MOBILE and otp == STATIC_OTP:
-            user, created = CustomUser.objects.get_or_create(mobile=TEST_MOBILE, defaults={"user_type": user_type})
+            if mobile == TEST_MOBILE and otp == STATIC_OTP:
+                user, created = CustomUser.objects.get_or_create(mobile=TEST_MOBILE, defaults={"user_type": user_type})
+                is_existing_user = GigEmployee.objects.filter(user=user).exists()
+                return Response({
+                    "message": "Test user OTP verified successfully", 
+                    "is_existing_user": is_existing_user
+                }, status=status.HTTP_200_OK)
+
+            otp_record = OTPVerification.objects.filter(otp=otp, mobile=mobile).order_by("-expires_at").first()
+            if not otp_record or otp_record.expires_at < timezone.now():
+                return Response({"error": "Invalid or expired OTP"}, status=status.HTTP_400_BAD_REQUEST)
+
+            otp_record.delete()
+
+            user = CustomUser.objects.filter(mobile=mobile, user_type=user_type).first()
             is_existing_user = GigEmployee.objects.filter(user=user).exists()
-            return Response({
-                "message": "Test user OTP verified successfully", 
-                "is_existing_user": is_existing_user
-            }, status=status.HTTP_200_OK)
 
-        otp_record = OTPVerification.objects.filter(otp=otp, mobile=mobile).order_by("-expires_at").first()
-        if not otp_record or otp_record.expires_at < timezone.now():
-            return Response({"error": "Invalid or expired OTP"}, status=status.HTTP_400_BAD_REQUEST)
+            # Check if the user has visited the employer screen
+            is_screen_visited = GigEmployee.objects.filter(user=user).first()
+            screen_check = is_screen_visited.is_employer_screen if is_screen_visited else False
 
-        otp_record.delete()
+            ######------------------Check if the user is part of an employer
+            associated_employee = AssociatedEmployees.objects.filter(phone_number=mobile).first()
+            is_employer_part = False
+            if associated_employee:
+                is_employer_part = GigEmployee.objects.filter(associated_employeer=associated_employee.employeer, mobile=mobile).exists()
 
-        user = CustomUser.objects.filter(mobile=mobile, user_type=user_type).first()
-        is_existing_user = GigEmployee.objects.filter(user=user).exists() if user else False
-        ###-------Is Employerr Part
-        associated_employeer = AssociatedEmployees.objects.filter(phone_number=mobile).first()
-        is_employer_part=GigEmployee.objects.filter(associated_employeer=associated_employeer,mobile=mobile).exists()
-        print(f"IS Employeer PArt :{is_employer_part}")
-
-        if user and is_existing_user:
-            tokens = create_gig_token(user, user_type)
-            return Response({
-                "message": "OTP verified successfully.",
-                "is_existing_user": True,
-                "is_employer_part":is_employer_part,
-                "tokens": tokens
-            }, status=status.HTTP_200_OK)
-
-        if not user:
-            serializer = EmployeeRegistrationSerializer(data={"mobile": mobile, "user_type": user_type})
-            if serializer.is_valid():
-                user = serializer.save()
+            if user and is_existing_user:
                 tokens = create_gig_token(user, user_type)
                 return Response({
-                    "message": "OTP verified successfully. User registered.",
-                    "is_existing_user": False,
-                    "is_employer_part":is_employer_part,
+                    "message": "OTP verified successfully.",
+                    "is_existing_user": True,
+                    "screen_check": screen_check,
+                    "is_employer_part": is_employer_part,
                     "tokens": tokens
                 }, status=status.HTTP_200_OK)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            if not user:
+                serializer = EmployeeRegistrationSerializer(data={"mobile": mobile, "user_type": user_type})
+                if serializer.is_valid():
+                    user = serializer.save()
+                    tokens = create_gig_token(user, user_type)
+                    return Response({
+                        "message": "OTP verified successfully. User registered.",
+                        "is_existing_user": False,
+                        "screen_check": screen_check,
+                        "is_employer_part": is_employer_part,
+                        "tokens": tokens
+                    }, status=status.HTTP_200_OK)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            else:
+                tokens = create_gig_token(user, user_type)
+                return Response({
+                    "message": "OTP verified successfully.",
+                    "is_existing_user": is_existing_user,
+                    "is_employer_part": is_employer_part,
+                    "screen_check": screen_check,
+                    "tokens": tokens
+                }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return handle_exception(e, "An error occurred while verifying OTP")
 
 ###################3---------------------------------Employee LOGIN
 class EmployeerLinkCheck(APIView):
     permission_classes = [IsAuthenticated]
-    def get(self, request, format=None):
+    def post(self, request, format=None):
         user = request.user
+        print(f"User is :{user}")
         provided_access_token = request.META.get('HTTP_AUTHORIZATION', '').split(' ')[-1]
 
         if user.access_token!= provided_access_token:
@@ -123,12 +146,14 @@ class EmployeerLinkCheck(APIView):
 
         if user.user_type!= "gigaff":
             return Response({'error': 'Only Giugs can view Request'}, status=status.HTTP_403_FORBIDDEN)
-        employee_id=request.query_params.get('employee_id')
+        employee_id=request.data.get('employee_id')
         if not employee_id:
             return Response({'error': 'Employee ID is required'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             employee=get_object_or_404(GigEmployee,user=user)
-            if employee.employee_id == employee_id:
+            if employee.employee_id == employee_id or employee.mobile==employee_id:
+                employee.is_employer_screen = True
+                employee.save()
                 return Response({'message': 'Success: Employer link verified'}, status=status.HTTP_200_OK)
             else:
                 return Response({'error': 'Mismatch: Provided employee ID does not match with Selected employer'}, status=status.HTTP_400_BAD_REQUEST)

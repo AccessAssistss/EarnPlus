@@ -5,7 +5,7 @@ from .models import *
 class GigEmployeeAdmin(admin.ModelAdmin):
     list_display = ("name","mobile", "is_deleted")
     search_fields = ("name", "employee_id", "mobile")
-    list_filter = ("is_deleted")
+    list_filter = ("is_deleted",)
     
     
 @admin.register(CustomUser)
@@ -21,18 +21,16 @@ class EmployeeVerificationAdmin(admin.ModelAdmin):
 
 @admin.register(SalaryHistory)
 class SalaryHistoryAdmin(admin.ModelAdmin):
-    list_display = ("employee", "salary_amount", "start_date", "end_date", "days_paid")
+    list_display = ("employee","daily_salary","salary_date")
     search_fields = ("employee__name",)
-    list_filter = ("start_date", "end_date")
+    list_filter = ("salary_date",)
 
 @admin.register(SalaryDetails)
 class SalaryDetailsAdmin(admin.ModelAdmin):
-    list_display = ("employee", "salary_amount", "employment_status", "last_salary_date", "earned_wages", "ewa_limit")
+    list_display = ("employee", "earned_wages", "ewa_limit")
     search_fields = ("employee__name",)
-    list_filter = ("employment_status", "last_updated")
 
-@admin.register(EWARequest)
+@admin.register(EWATransaction)
 class EWARequestAdmin(admin.ModelAdmin):
-    list_display = ("employee", "amount_requested", "status", "requested_at", "approved_at")
-    search_fields = ("employee__name",)
-    list_filter = ("status", "requested_at")
+    list_display = ("employee", "amount","interest_amount","interest_rate")
+    list_filter = ("status",)

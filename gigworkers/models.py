@@ -18,8 +18,8 @@ class OTPVerification(models.Model):
 class GigEmployee(models.Model):
     user=models.OneToOneField(CustomUser,on_delete=models.CASCADE,null=True,blank=True)
     associated_employees = models.ForeignKey('employer.AssociatedEmployees', on_delete=models.CASCADE,null=True, blank=True)
-    assocated_employeer=models.ForeignKey('employer.Employeer',on_delete=models.CASCADE,null=True, blank=True)
-    employee_id= models.CharField(max_length=100, unique=True)
+    associated_employeer=models.ForeignKey('employer.Employeer',on_delete=models.CASCADE,null=True, blank=True)
+    employee_id= models.CharField(max_length=100, null=True, blank=True)
     name = models.CharField(max_length=100, null=True, blank=True)
     email = models.EmailField(max_length=100, null=True, blank=True)
     mobile = models.CharField(max_length=10, validators=[validate_mobile_no])
@@ -36,6 +36,7 @@ class GigEmployee(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
+    is_employer_screen = models.BooleanField(default=False)
     is_affilated = models.BooleanField(default=True)
     buy_franchise= models.BooleanField(default=False)
     is_on_probation = models.BooleanField(default=False)

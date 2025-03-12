@@ -9,34 +9,36 @@ class EmployeeRegistrationSerializer(serializers.ModelSerializer):
     user_type = serializers.ChoiceField(choices=['gigaff', 'nongigaff'])
     class Meta:
         model = CustomUser
-        fields = ['mobile', 'user_type','employee_id']
+        fields = ['mobile', 'user_type']
 
 
     def create(self, validated_data):
         user_type = validated_data.get('user_type')
         mobile = validated_data.get('mobile')
-
         if not user_type:
             raise ValueError("user_type must be provided")
         user = CustomUser.objects.create_user(
             mobile=validated_data.get('mobile'),
-            user_type=self.user_type
+            user_type=user_type
         )
-
-        if self.user_type == 'gigaff':
-            associated_employeer = AssociatedEmployees.objects.filter(phone_number=mobile).first()
-            GigEmployee.objects.create(user=user, mobile=user.mobile,associated_employeer=associated_employeer,employee_id=associated_employeer.employee_id,
-                                       name=associated_employeer.employee_name,assocated_employeer=associated_employeer.employeer,
-                                       dob=associated_employeer.dob,date_joined=associated_employeer.date_joined,
-                                       department=associated_employeer.department, designation=associated_employeer.designation,
-                                       salary=associated_employeer.salary, address=associated_employeer.address,salary_date =associated_employeer.salary_date
-                                       )
-        else:
-            raise ValueError("Invalid user type")
-
-        print(f"Created {self.user_type} user: {user} with Mobile: {user.mobile}")
+        associated_employee = AssociatedEmployees.objects.filter(phone_number=mobile).first()
+        GigEmployee.objects.create(
+            user=user,
+            mobile=user.mobile,
+            associated_employees=associated_employee,
+            associated_employeer=associated_employee.employeer if associated_employee else None,
+            employee_id=associated_employee.employee_id if associated_employee else None,
+            name=associated_employee.employee_name if associated_employee else None,
+            dob=associated_employee.dob if associated_employee else None,
+            date_joined=associated_employee.date_joined if associated_employee else None,
+            department=associated_employee.department if associated_employee else None,
+            designation=associated_employee.designation if associated_employee else None,
+            salary=associated_employee.salary if associated_employee else None,
+            address=associated_employee.address if associated_employee else None,
+            salary_date=associated_employee.salary_date if associated_employee else None
+        )
         return user
-    
+
 #####################------------------------Gig Bank Details
 #########################----------------------Add Employeee
 class AddGigBankeSerializer(serializers.ModelSerializer):

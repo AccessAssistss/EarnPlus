@@ -12,12 +12,10 @@ urlpatterns = [
     path('FaceLivelinessAPI',FaceLivelinessAPI.as_view(), name='FaceLivelinessAPI'),
     path('VideoKyc',VideoKyc.as_view(), name='VideoKyc'),
     path('EmployeeBankInfo',EmployeeBankInfo.as_view(), name='EmployeeBankInfo'),
+    path('EmployeerLinkCheck',EmployeerLinkCheck.as_view(), name='EmployeerLinkCheck'),
 #########################33------------------------------Home Screens------------------------------###########
     path('UserProfileView',UserProfileView.as_view(), name='UserProfileView'),
-   
-
-
     path('GetEwaCheckeer',GetEwaCheckeer.as_view(), name='GetEwaCheckeer'),
     path('CheckEWABalance',CheckEWABalance.as_view(),name='CheckEWABalance'),
-    path('RequestEWAAmount',RequestEWAAmount.as_view(), name='RequestEWAAmount'),
+    path('RequestEWA',RequestEWA.as_view(), name='RequestEWA'),
     ]

@@ -206,3 +206,7 @@ FIREBASE_CREDENTIALS = os.environ.get('FIREBASE_CREDENTIALS')
 
 cred = credentials.Certificate(FIREBASE_CREDENTIALS)
 firebase_admin.initialize_app(cred)
+
+##################-------------
+RAZORPAY_KEY_ID="asas"
+RAZORPAY_KEY_SECRET="vgfhghggh"
