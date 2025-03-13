@@ -31,7 +31,7 @@ class GigEmployee(models.Model):
     date_joined = models.DateField(null=True, blank=True)
     salary = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  
     salary_date = models.DateField(null=True, blank=True) ###----For AFFILATED
-    payment_cycle = models.IntegerField(default=30, help_text="Payment cycle in days")
+    payment_cycle = models.IntegerField(default=30)
     address = models.TextField(null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -164,7 +164,7 @@ def store_otp(identifier, otp):
 
 ########################----------------------------Email Sender
 def send_email(subject, message, recipient_list):
-    from_email="reachus@agrisarathi.com"
+    from_email="reachus@l2gfincap.in"
     try:
         message=Mail(
             subject=subject,

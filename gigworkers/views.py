@@ -679,6 +679,8 @@ class GetEwaCheckeer(APIView):
             return Response({'error': 'Only Giugs can view Request'}, status=status.HTTP_403_FORBIDDEN)
         try:
             employee=get_object_or_404(GigEmployee,user=user)
+            age=employee.get_age()
+            print(f"Age is :{age}")
             is_eligible = employee.is_eligible_for_ewa()
             if not is_eligible:
                 return Response({'error': 'You are not eligible for Earned Wage Access (EWA).'}, status=status.HTTP_403_FORBIDDEN)
@@ -701,7 +703,9 @@ class CheckEWABalance(APIView):
             return Response({'error': 'Only Giugs can view Request'}, status=status.HTTP_403_FORBIDDEN)
         try:
             employee=get_object_or_404(GigEmployee,user=user,is_affilated=True)
+            print(f"Employee is :{employee}")
             salary_details = SalaryDetails.objects.filter(employee=employee).first()
+            print(f"")
             if not salary_details:
                 return Response({"error": "Employee is not active or has no salary details"}, status=status.HTTP_404_NOT_FOUND)
             earned_wages = salary_details.calculate_earned_wages()
