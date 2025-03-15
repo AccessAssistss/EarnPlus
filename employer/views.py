@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
+from django.db import transaction
 import random
 from django.contrib.auth.hashers import check_password,make_password
 from gigworkers.managers import *
@@ -16,6 +17,8 @@ from gigworkers.models import *
 from .models import *
 from .serializers import *
 from django.db.models import Q
+import pandas as pd
+import csv
 
 # Create your views here.
 ###############---------------Authorization
@@ -283,18 +286,19 @@ class AddEmployeeByEmployerView(APIView):
             return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
         if user.user_type!="employer":
             return Response({'error': 'User type is not Employer'}, status=status.HTTP_400_BAD_REQUEST)
-        employee_id = request.data.get("employee_id")
         try:
             employer=get_object_or_404(Employeer,user=user)
-            associated_employee = AssociatedEmployees.objects.filter(employeer=employer, employee_id=employee_id).first()
-            if associated_employee:
-                return Response({'error': 'Employee is already associated with this employer.'}, status=status.HTTP_400_BAD_REQUEST)
             serializer = AddEmployeeSerializer(data=request.data)
             if serializer.is_valid():
-                serializer.save(employeer=employer)
+                with transaction.atomic():
+                    serializer.save(employeer=employer)
                 return Response({'status': 'success','message':'Employee added successfully'}, status=status.HTTP_200_OK)
-            else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            error_messages = []
+            for field, errors in serializer.errors.items():
+                error_messages.extend(errors)
+
+            return Response({"status": "error", "message": " ".join(error_messages)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return handle_exception(e,"An error occured while adding employee")
     def get(self, request, format=None):
@@ -304,7 +308,7 @@ class AddEmployeeByEmployerView(APIView):
             return Response({'error': 'User is not an employer'}, status=status.HTTP_403_FORBIDDEN)
         try:
             employer = get_object_or_404(Employeer, user=user)
-            employees = AssociatedEmployees.objects.filter(employeer=employer)
+            employees = GigEmployee.objects.filter(employeer=employer)
 
             serializer = AddEmployeeSerializer(employees, many=True)
             return Response({'status': 'success', 'employees': serializer.data}, status=status.HTTP_200_OK)
@@ -318,7 +322,7 @@ class AddEmployeeByEmployerView(APIView):
             return Response({'error': 'User is not an employer'}, status=status.HTTP_403_FORBIDDEN)
         try:
             employer = get_object_or_404(Employeer, user=user)
-            employee = get_object_or_404(AssociatedEmployees, employeer=employer, employee_id=employee_id)
+            employee = get_object_or_404(GigEmployee, employeer=employer, employee_id=employee_id)
 
             serializer = AddEmployeeSerializer(employee, data=request.data, partial=True)
             if serializer.is_valid():
@@ -328,3 +332,122 @@ class AddEmployeeByEmployerView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return handle_exception(e, "An error occurred while updating employee details")
+        
+
+########################------------------------Add Employee Data Bulk
+class BulkEmployeeAdd(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, format=None):
+        user = request.user
+        print(f"User is {user.user_type}")
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        print(f"Access token is {provided_access_token}")
+        if user.access_token!= provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type!="employer":
+            return Response({'error': 'User type is not Employer'}, status=status.HTTP_400_BAD_REQUEST)
+        file=request.FILES.get('file')
+        if not file:
+            return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            employer=Employeer(user=user)
+            df = pd.read_excel(file, engine='openpyxl')
+            required_columns=['employee_name', 'employee_id', 'email', 'mobile', 'designation', 'dob', 'department', 'date_joined', 'employment_type', 'payment_cycle', 'address']
+            if not all(column in df.columns for column in required_columns):
+                return Response({'error': 'File does not contain required columns'}, status=status.HTTP_400_BAD_REQUEST)
+            ###---------------Flag Handlers
+
+            successful=0
+            failed=0
+            failed_entries=[]
+            new_employees=[]
+            existing_mobiles = set(CustomUser.objects.values_list('mobile', flat=True))
+            existing_employee_ids = set(GigEmployee.objects.values_list('employee_id',flat=True))
+            for index, row in df.iterrows():
+                try:
+                    mobile=str(row['mobile'])
+                    employee_id=str(row['employee_id'])
+                    if mobile in existing_mobiles or employee_id in existing_employee_ids:
+                        failed += 1
+                        failed_entries.append({"employee_id": employee_id, "mobile": mobile, "error": "Duplicate entry"})
+                        continue
+                    user = CustomUser.objects.create_user(
+                            mobile=mobile,  
+                            user_type="gigaff"  
+                        )
+                    new_employees.append(GigEmployee(
+                        user=user,
+                        employee_name=row['employee_name'],
+                        employee_id=employee_id,
+                        email=row.get('email', None),
+                        mobile=mobile,
+                        designation=row['designation'],
+                        dob=row['dob'],
+                        department=row['department'],
+                        date_joined=row['date_joined'],
+                        employment_type=row['employment_type'],
+                        payment_cycle=row['payment_cycle'],
+                        address=row.get('address', None),
+                        employeer=employer
+                    ))
+
+                    successful += 1
+                
+                except Exception as e:
+                    failed += 1
+                    failed_entries.append({"employee_id": row['employee_id'], "mobile": row['mobile'], "error": str(e)})
+
+            #-----------Bulk insert new employees
+            if new_employees:
+                GigEmployee.objects.bulk_create(new_employees, batch_size=1000)  # Efficient bulk insert
+            return Response({
+                "status": "success",
+                "message": f"{successful} employees added successfully, {failed} failed",
+                "failed_entries": failed_entries
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return handle_exception(e,"An error occurred while bulk adding employees")
+
+##################################3-----------------------Add Salary Data by Employeer
+class AddSalaryDataByEmployerView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, format=None):
+        user = request.user
+        print(f"User is {user.user_type}")
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        print(f"Access token is {provided_access_token}")
+        if user.access_token != provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type!="employer":
+            return Response({'error': 'User type is not Employer'}, status=status.HTTP_400_BAD_REQUEST)
+        employee_id = request.data.get("employee_id")
+        if not employee_id:
+            return Response({'error': 'Employee ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            employer=get_object_or_404(Employeer,user=user)
+            gig_employee=get_object_or_404(GigEmployee,employee_id=employee_id)
+            SalaryHistory.objects.create(
+                employer=employer,
+                employee=gig_employee,
+                daily_salary=request.data.get("daily_salary"),
+                salary_date=request.data.get("salary_date"),
+            )
+            return Response({'status': 'success','message':'Salary data added successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return handle_exception(e,"An error occurred while adding salary data")
+        
+    def get(self,request,format=None):
+        user = request.user
+
+        if user.user_type!= "employer":
+            return Response({'error': 'User is not an employer'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            employer = get_object_or_404(Employeer, user=user)
+            paginator=CurrentNewsPagination()
+            salary_data = SalaryHistory.objects.filter(employer=employer)
+            paginated_transactions=paginator.paginate_queryset(salary_data,request)
+            serializer = EmployeeSalaryHistorySerializer(paginated_transactions, many=True)
+            return paginator.get_paginated_response({'status':'success','salary_data': serializer.data})
+        except Exception as e:
+            return handle_exception(e, "An error occurred while fetching salary data")
+        

@@ -4,6 +4,7 @@ from rest_framework_simplejwt.tokens import RefreshToken,TokenError
 from gigworkers.managers import CustomUser
 from rest_framework.response import Response
 from .models import *
+from gigworkers.models import *
 ################-------------------------Employeer Registration
 class EmployerRegistrationSerializer(serializers.Serializer):
     mobile = serializers.CharField()
@@ -45,24 +46,55 @@ class EmployerRegistrationSerializer(serializers.Serializer):
             raise serializers.ValidationError({"name": f"Name is required for {user_type.upper()} users."})
 
         return data
+    
+
+#############################--------------------------Add Employee By Employers
+class AddEmployeeSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=False, allow_null=True)
+    address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    mobile = serializers.CharField(required=True)
+
+    class Meta:
+        model = GigEmployee
+        fields = [
+            'id', 'employee_name', 'employee_id', 'email', 'mobile', 
+            'designation', 'dob', 'department', 'date_joined', 'employment_type', 
+            'payment_cycle', 'address'
+        ]
+
+    def validate(self, data):
+        """Check if mobile or employee_id already exists and return a structured error response."""
+        if CustomUser.objects.filter(username=data.get('mobile')).exists():
+            raise serializers.ValidationError({"error": "A user with this mobile number already exists."})
+
+        if GigEmployee.objects.filter(employee_id=data.get('employee_id')).exists():
+            raise serializers.ValidationError({"error": "An employee with this ID already exists."})
+
+        return data
+
+    def create(self, validated_data):
+        """
+        Override create method to first create a CustomUser and then associate it with GigEmployee.
+        """
+        #---------------Extract fields
+        email = validated_data.get('email', None)
+        mobile = validated_data.get('mobile')
+
+        #-----------Create CustomUser instance
+        user = CustomUser.objects.create_user(
+            mobile=mobile,  
+            email=email,
+            user_type="gigaff"  
+        )
+        gig_employee = GigEmployee.objects.create(user=user, **validated_data)
+        return gig_employee
 ######################---------------------Employeer Login----------------------------
 class EmployerLoginSerializer(serializers.Serializer):
     email = serializers.CharField()
     password = serializers.CharField(write_only=True)
     user_type = serializers.ChoiceField(choices=['employer'])
 
-#########################----------------------Add Employeee
-class AddEmployeeSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(required=False, allow_null=True)
-    address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    class Meta:
-        model = AssociatedEmployees
-        fields = ['id',
-            'employee_name', 'employee_id', 'email', 'phone_number', 
-            'designation', 'dob', 'department', 'date_joined', 'employment_type','payment_cycle'
-            'salary', 'address'
-        ]
-    
+
 ######------------------------Employerr Details
 class EmployerDetailsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -78,3 +110,13 @@ class EmployerDetailsSerializer(serializers.ModelSerializer):
             'is_partnership': {'read_only': True},
         }
       
+
+###########################-----------------Salary Histories
+class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SalaryHistory
+        fields = ['id',
+            'employee',
+            'salary_date',
+            'daily_salary',
+        ]

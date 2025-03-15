@@ -17,10 +17,21 @@ class OTPVerification(models.Model):
 ###############-------------------Employee Model (Salaried)------------------#########
 class GigEmployee(models.Model):
     user=models.OneToOneField(CustomUser,on_delete=models.CASCADE,null=True,blank=True)
-    associated_employees = models.ForeignKey('employer.AssociatedEmployees', on_delete=models.CASCADE,null=True, blank=True)
-    associated_employeer=models.ForeignKey('employer.Employeer',on_delete=models.CASCADE,null=True, blank=True)
+    employeer=models.ForeignKey('employer.Employeer',on_delete=models.CASCADE,null=True, blank=True)
+    EMPLOYMENT_TYPE_CHOICES = [
+        ('SALARIED', 'Salaried Employee'),
+        ('CONTRACTUAL_FIXED_VARIABLE', 'Contractual with Fixed & Variable Salary'),
+        ('GIG_WORKER', 'Gig Worker with Variable Income')
+    ]
+    payment_cycle = models.CharField(max_length=20, choices=[
+        ('DAILY', 'Daily'),
+        ('WEEKLY', 'Weekly'),
+        ('BIWEEKLY', 'Bi-Weekly'),
+        ('MONTHLY', 'Monthly')
+    ], default='MONTHLY')
+    employment_type = models.CharField(max_length=50, choices=EMPLOYMENT_TYPE_CHOICES, default='SALARIED')
+    employee_name = models.CharField(max_length=100, null=True, blank=True)
     employee_id= models.CharField(max_length=100, null=True, blank=True)
-    name = models.CharField(max_length=100, null=True, blank=True)
     email = models.EmailField(max_length=100, null=True, blank=True)
     mobile = models.CharField(max_length=10, validators=[validate_mobile_no])
     gender=models.CharField(null=True, blank=True, max_length=100)
@@ -28,10 +39,8 @@ class GigEmployee(models.Model):
     dob = models.DateField(null=True, blank=True) 
     department = models.CharField(max_length=100, null=True, blank=True)
     designation = models.CharField(max_length=100, null=True, blank=True) 
-    date_joined = models.DateField(null=True, blank=True)
-    salary = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  
+    date_joined = models.DateField(null=True, blank=True)  
     salary_date = models.DateField(null=True, blank=True) ###----For AFFILATED
-    payment_cycle = models.IntegerField(default=30)
     address = models.TextField(null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -43,7 +52,7 @@ class GigEmployee(models.Model):
     has_default_history = models.BooleanField(default=False)
     
     def __str__(self):
-        return f"{self.name} ({self.employee_id})"
+        return f"{self.employee_name} ({self.employee_id})"
 
     def get_age(self):
         """Calculate employee's age"""
@@ -94,6 +103,19 @@ class GigEmployee(models.Model):
 
     
 
+#####################-------------------------Bank Details
+class BankDetails(models.Model):
+    salaried_employee= models.ForeignKey('gigworkers.GigEmployee', on_delete=models.CASCADE,null=True,blank=True)
+    bank_name = models.CharField(max_length=100, null=True, blank=True)
+    account_number = models.CharField(max_length=20, null=True, blank=True)
+    account_holder_name = models.CharField(max_length=100, null=True, blank=True)
+    branch_name = models.CharField(max_length=100, null=True, blank=True)
+    upi_id=models.CharField(max_length=100, null=True, blank=True)
+    ifsc_code = models.CharField(max_length=20, null=True, blank=True)
+    is_deleted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
 ####---------------------Employee Verifications
 class EmployeeVerification(models.Model):
     employee = models.OneToOneField(GigEmployee, on_delete=models.CASCADE,null=True,blank=True)
@@ -113,11 +135,24 @@ class EmployeeVerification(models.Model):
 
 ###############-----------------------Employee Salary History
 class SalaryHistory(models.Model):
-    """Tracks past salaries and payments for employees"""
+    """Tracks past salaries and payments for employees Salaried Payment Cycle monthly"""
     employee = models.ForeignKey(GigEmployee, on_delete=models.CASCADE,null=True,blank=True)
-    daily_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Salary per day
+    employer = models.ForeignKey(Employeer, on_delete=models.CASCADE,null=True,blank=True)
+    daily_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Salary per day Fixed
     salary_date = models.DateField()
-    created_at = models.DateTimeField(auto_now_add=True)  
+    """Addition Field for Fixed Daily Salary and Variable Income for Contarctual Fixed+Variable"""
+    products_produced = models.IntegerField(default=0)  # Number of products produced
+    variable_income = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    rate_per_product = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Rate per product
+    total_earnings = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # Fixed + Variable
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True) 
+
+    def save(self, *args, **kwargs):
+        self.variable_income = self.products_produced * self.rate_per_product
+        self.total_earnings = self.daily_salary + self.variable_income
+        
+        super().save(*args, **kwargs)
 
 class SalaryDetails(models.Model):
     employee = models.OneToOneField(GigEmployee, on_delete=models.CASCADE, null=True, blank=True)
@@ -125,6 +160,7 @@ class SalaryDetails(models.Model):
     ewa_limit = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Current EWA limit
     last_withdrawal_date = models.DateField(null=True, blank=True)  # Track the last withdrawal date
     last_withdrawal_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Track the last withdrawal amount
+    created_at = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(auto_now=True)  # Timestamp when the record was last updated
 
     def get_daily_salary_records(self, start_date, end_date):
@@ -137,37 +173,44 @@ class SalaryDetails(models.Model):
 
     def calculate_earned_wages(self):
         """Calculate earned wages based on daily salary data since the last salary or withdrawal."""
+    
         if self.last_withdrawal_date:
             start_date = self.last_withdrawal_date
+            print(f"Using last withdrawal date as start: {start_date}")
         else:
-            last_salary_record = SalaryHistory.objects.filter(
+            first_salary_record = SalaryHistory.objects.filter(
                 employee=self.employee,
-                daily_salary__gt=0  
-            ).order_by('-salary_date').first()
-            print(f"Last salary record :{last_salary_record}")
-            if not last_salary_record:
+                total_earnings__gt=0  
+            ).order_by('salary_date').first()  #----------------Fetch the earliest record
+
+            if not first_salary_record:
+                print("No salary records found.")
                 return 0
-            start_date = last_salary_record.salary_date
-            print(f"Salary START dATE :{start_date}")
 
-        #------------Fetch daily salary records since the start date
-        daily_salary_records = self.get_daily_salary_records(start_date, timezone.now().date())
-        print(f"Daily salary records :{daily_salary_records}")
+            start_date = first_salary_record.salary_date  # Start from the earliest date
+            print(f"Using first salary record as start: {start_date}")
 
-        #----------------Calculate earned wages
-        self.earned_wages = sum(record.daily_salary for record in daily_salary_records)
-        ew=self.earned_wages
-        print(f"Earned Wages :{ew}")
+        #---------------Fetch daily salary records since start_date
+        daily_salary_records = list(self.get_daily_salary_records(start_date, timezone.now().date()))
+        print(f"Filtered Daily Salary Records: {[(record.salary_date, record.total_earnings) for record in daily_salary_records]}")
 
+        #------------------Calculate total earned wages
+        self.earned_wages = sum(record.total_earnings for record in daily_salary_records)
+        print(f"Earned Wages: {self.earned_wages}")
+
+        #------------------Get EWA cap percentages from the employee model
         min_cap_pct, max_cap_pct = self.employee.get_ewa_cap_percentage()
+        
+        #---------------Calculate min and max caps
         min_cap = min_cap_pct * self.earned_wages
         max_cap = max_cap_pct * self.earned_wages
-        
-        #-------------------Set the EWA limit to the appropriate cap
-        self.ewa_limit = min(max_cap, self.earned_wages)  # Cannot exceed earned wages
-        
+        print(f"Min Cap: {min_cap}, Max Cap: {max_cap}")
+
+        #-------------------Set EWA limit to max cap but not exceeding earned wages
+        self.ewa_limit = min(max_cap, self.earned_wages)  
+        print(f"Updated EWA Limit: {self.ewa_limit}")
+
         self.save()
-        return self.earned_wages
 
 
     def update_ewa_limit_after_withdrawal(self, withdrawal_amount):
@@ -177,12 +220,15 @@ class SalaryDetails(models.Model):
 
         #---------------Deduct the withdrawal amount from the EWA limit
         self.ewa_limit -= withdrawal_amount
+        print(f"Updated EWA Limit: {self.ewa_limit}")
         self.last_withdrawal_amount = withdrawal_amount
+        print(f"Withdrwal Amount : {self.last_withdrawal_amount}")
         self.last_withdrawal_date = timezone.now().date()
+        print(f"Withdrwal Last DAte : {self.last_withdrawal_date}")
         self.save()
 
     def __str__(self):
-        return f"Salary Details for {self.employee.name}"
+        return f"Salary Details for {self.employee.employee_name}"
 
     def calculate_due_date(self):
         """
@@ -197,7 +243,7 @@ class SalaryDetails(models.Model):
             return timezone.now().date() + timedelta(days=30)
 
     def __str__(self):
-        return f"Salary for {self.employee.name}"
+        return f"Salary for {self.employee.employee_name}"
 
 ###############################----------------EWA Requests   
 class EWATransaction(models.Model):
@@ -245,7 +291,7 @@ class EWATransaction(models.Model):
     razorpay_order_id = models.CharField(max_length=100, null=True, blank=True)
 
     def __str__(self):
-        return f"EWA Transaction: {self.employee.name} - ₹{self.amount} - {self.status}"
+        return f"EWA Transaction: {self.employee.employee_name} - ₹{self.amount} - {self.status}"
 
     def calculate_interest(self):
         """Calculate interest based on daily interest rate"""
@@ -253,9 +299,11 @@ class EWATransaction(models.Model):
             return 0
             
         days_until_due = (self.due_date - self.withdrawal_date.date()).days
+        print(f"Intersyt is {days_until_due}")
         
         #----------------Calculate interest based on daily rate
         interest = round(self.amount * self.interest_rate * days_until_due, 2)
+        print(f"Intersyt is {interest}")
         self.interest_amount = interest
         
         if self.interest_charging_method == 'PRE_UTILIZATION':
@@ -275,11 +323,13 @@ class EWATransaction(models.Model):
         if self.interest_charging_method != 'PRE_UTILIZATION' or repayment_date >= self.due_date:
             return 0
             
-        # Calculate unused days
+        #---------------------------Calculate unused days
         unused_days = (self.due_date - repayment_date).days
+        print(f"Unused Days :{unused_days}")
         
-        # Calculate interest for unused days
+        #------------------------Calculate interest for unused days
         refund = round(self.amount * self.interest_rate * unused_days, 2)
+        print(f"Refunc :{refund}")
         
         # Cannot refund more than pre-paid
         return min(refund, self.prepaid_interest)
@@ -294,7 +344,24 @@ class EWATransaction(models.Model):
             return self.amount <= salary_details.ewa_limit
         except SalaryDetails.DoesNotExist:
             return False
+        
+#######################-----------------------EWA DAily Interst Amount Logs-----------------###############        
+class EWAInterestLog(models.Model):
+    """Tracks daily interest charges and other events for EWA transactions."""
+    transaction = models.ForeignKey(EWATransaction, on_delete=models.CASCADE, related_name='interest_logs')
+    event_type = models.CharField(max_length=50, choices=[
+        ('DAILY_INTEREST', 'Daily Interest Charge'),
+        ('REPAYMENT', 'Repayment'),
+        ('REFUND', 'Refund'),
+        ('OVERDUE_INTEREST', 'Overdue Interest Charge'),
+    ])
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Amount charged or refunded
+    event_date = models.DateField()  # Date of the event
+    description = models.TextField(null=True, blank=True)  # Additional details
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f"{self.event_type} for {self.transaction.transaction_id} on {self.event_date}: ₹{self.amount}"
 # ------------------------------ EWA Repayment Model
 class EWARepayment(models.Model):
     transaction = models.ForeignKey(EWATransaction, on_delete=models.CASCADE, related_name='repayments')

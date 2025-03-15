@@ -2,43 +2,7 @@ from rest_framework import serializers
 from .managers import *
 from .models import *
 from employer.models import *
-
-
-class EmployeeRegistrationSerializer(serializers.ModelSerializer):
-    mobile = serializers.CharField()
-    user_type = serializers.ChoiceField(choices=['gigaff', 'nongigaff'])
-    class Meta:
-        model = CustomUser
-        fields = ['mobile', 'user_type']
-
-
-    def create(self, validated_data):
-        user_type = validated_data.get('user_type')
-        mobile = validated_data.get('mobile')
-        if not user_type:
-            raise ValueError("user_type must be provided")
-        user = CustomUser.objects.create_user(
-            mobile=validated_data.get('mobile'),
-            user_type=user_type
-        )
-        associated_employee = AssociatedEmployees.objects.filter(phone_number=mobile).first()
-        GigEmployee.objects.create(
-            user=user,
-            mobile=user.mobile,
-            associated_employees=associated_employee,
-            associated_employeer=associated_employee.employeer if associated_employee else None,
-            employee_id=associated_employee.employee_id if associated_employee else None,
-            name=associated_employee.employee_name if associated_employee else None,
-            dob=associated_employee.dob if associated_employee else None,
-            date_joined=associated_employee.date_joined if associated_employee else None,
-            department=associated_employee.department if associated_employee else None,
-            designation=associated_employee.designation if associated_employee else None,
-            salary=associated_employee.salary if associated_employee else None,
-            address=associated_employee.address if associated_employee else None,
-            salary_date=associated_employee.salary_date if associated_employee else None
-        )
-        return user
-
+from django.db.models import Sum
 #####################------------------------Gig Bank Details
 #########################----------------------Add Employeee
 class AddGigBankeSerializer(serializers.ModelSerializer):
@@ -50,18 +14,28 @@ class AddGigBankeSerializer(serializers.ModelSerializer):
         ]
 ###################---------------------------Salaried Employee Details
 class SalariedEmployeesSerializer(serializers.ModelSerializer):
-    employer_name=serializers.CharField(source='assocated_employeer.name',allow_blank=True)
-    employer_logo=serializers.CharField(source='assocated_employeer.company_profile',allow_blank=True)
+    employer_name=serializers.CharField(source='employeer.name',allow_blank=True)
+    employer_logo=serializers.CharField(source='employeer.company_profile',allow_null=True)
+    total_salary_thismonth=serializers.SerializerMethodField()
     class Meta:
         model=GigEmployee
-        fields=['id','employee_id','employer_name','employer_logo','name']
+        fields=['id','employee_id','employer_name','employer_logo','employee_name','total_salary_thismonth']
+
+    def get_total_salary_thismonth(self,obj):
+        current_month=timezone.now().month
+        print(f"Curentr Mointh is :{current_month}")
+        current_year=timezone.now().year
+        print(f"Curentr Year :{current_year}")
+        total_salary=SalaryHistory.objects.filter(employee=obj,salary_date__year=current_year,
+                                                  salary_date__month=current_month).aggregate(Sum('daily_salary'))['daily_salary__sum'] or 0
+        return total_salary
 #################--------------------------Non SALARIED eMPLOYABILITY ADD
 
 class AddnonEmployeeSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=False, allow_null=True)
     address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     class Meta:
-        model = AssociatedEmployees
+        model = GigEmployee
         fields = ['id',
             'employee_name', 'employee_id', 'email', 'phone_number', 
             'designation', 'dob', 'department', 'date_joined', 
@@ -73,6 +47,16 @@ class EmployeeVerificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployeeVerification
         fields = ['pan_number', 'aadhar_number', 'selfie', 'video_kyc', 'is_verified']
+
+###########################-----------------Salary Histories
+class SalaryHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SalaryHistory
+        fields = ['id',
+            'employee',
+            'salary_date',
+            'daily_salary',
+        ]
 
 ##################------------------Employeer List---------------------##############
 class EmployeerListSerializer(serializers.ModelSerializer):

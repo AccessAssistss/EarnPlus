@@ -59,7 +59,6 @@ class UserSendOTP(APIView):
 #################------------------------------------------Verify Otp-------------------###############
 class VerifyOTP(APIView):
     permission_classes = [AllowAny]
-
     def post(self, request, format=None):
         try:
             mobile = request.data.get("mobile")
@@ -69,6 +68,7 @@ class VerifyOTP(APIView):
             if not mobile or not otp or not user_type:
                 return Response({"error": "Mobile number, OTP, and user type are required"}, status=status.HTTP_400_BAD_REQUEST)
 
+            #----------------------Handle Test User
             if mobile == TEST_MOBILE and otp == STATIC_OTP:
                 user, created = CustomUser.objects.get_or_create(mobile=TEST_MOBILE, defaults={"user_type": user_type})
                 is_existing_user = GigEmployee.objects.filter(user=user).exists()
@@ -77,66 +77,51 @@ class VerifyOTP(APIView):
                     "is_existing_user": is_existing_user
                 }, status=status.HTTP_200_OK)
 
+            #-------------------------------Validate OTP
             otp_record = OTPVerification.objects.filter(otp=otp, mobile=mobile).order_by("-expires_at").first()
             if not otp_record or otp_record.expires_at < timezone.now():
                 return Response({"error": "Invalid or expired OTP"}, status=status.HTTP_400_BAD_REQUEST)
-
+            
             otp_record.delete()
-
             user = CustomUser.objects.filter(mobile=mobile, user_type=user_type).first()
+            if not user:
+                return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
             is_existing_user = GigEmployee.objects.filter(user=user).exists()
 
-            #-----------------Check if the user has visited the employer screen
-            is_screen_visited = GigEmployee.objects.filter(user=user).first()
-            print(f"Gig Intsance :{is_screen_visited}")
-            is_adhars=EmployeeVerification.objects.filter(employee=is_screen_visited).first()
-            print(f"Adhar :{is_adhars}")
-            adhar_check= is_adhars.aadhar_verified if is_adhars else False
-            pan_check=is_adhars.pan_verified if is_adhars else False
-            video_check=is_adhars.video_verified if is_adhars else False
-            selfie_check=is_adhars.selfie_verified if is_adhars else False
-            print(f"Adhar :{adhar_check} Pan Check :{pan_check} Video Check :{video_check} Selfie Check :{selfie_check}")
-            screen_check = is_screen_visited.is_employer_screen if is_screen_visited else False
+            #------------------------Check if user has visited employer screen
+            gig_employee = GigEmployee.objects.filter(user=user).first()
+            screen_check = gig_employee.is_employer_screen if gig_employee else False
 
-            ######------------------Check if the user is part of an employer
-            associated_employee = AssociatedEmployees.objects.filter(phone_number=mobile).first()
+            #----------------Check Aadhar, PAN, Video, Selfie Verification Status
+            employee_verification = EmployeeVerification.objects.filter(employee=gig_employee).first()
+            adhar_check = employee_verification.aadhar_verified if employee_verification else False
+            pan_check = employee_verification.pan_verified if employee_verification else False
+            video_check = employee_verification.video_verified if employee_verification else False
+            selfie_check = employee_verification.selfie_verified if employee_verification else False
+
+            #--------------------Check Employer Association
             is_employer_part = False
-            if associated_employee:
-                is_employer_part = GigEmployee.objects.filter(associated_employeer=associated_employee.employeer, mobile=mobile).exists()
+            if gig_employee and gig_employee.employeer:
+                is_employer_part = GigEmployee.objects.filter(
+                    employeer=gig_employee.employeer, mobile=mobile
+                ).exists()
 
-            if user and is_existing_user:
-                tokens = create_gig_token(user, user_type)
-                return Response({
-                    "message": "OTP verified successfully.",
-                    "is_existing_user": True,
-                    "screen_check": screen_check,
-                    "is_employer_part": is_employer_part,
-                    "tokens": tokens
-                }, status=status.HTTP_200_OK)
+            #-----------------------------Generate Tokens
+            tokens = create_gig_token(user, user_type)
 
-            if not user:
-                serializer = EmployeeRegistrationSerializer(data={"mobile": mobile, "user_type": user_type})
-                if serializer.is_valid():
-                    user = serializer.save()
-                    tokens = create_gig_token(user, user_type)
-                    return Response({
-                        "message": "OTP verified successfully. User registered.",
-                        "is_existing_user": False,
-                        "screen_check": screen_check,
-                        "is_employer_part": is_employer_part,
-                        "tokens": tokens
-                    }, status=status.HTTP_200_OK)
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-            else:
-                tokens = create_gig_token(user, user_type)
-                return Response({
-                    "message": "OTP verified successfully.",
-                    "is_existing_user": is_existing_user,
-                    "is_employer_part": is_employer_part,
-                    "screen_check": screen_check,
-                    "tokens": tokens
-                }, status=status.HTTP_200_OK)
+            return Response({
+                "message": "OTP verified successfully.",
+                "is_existing_user": is_existing_user,
+                "employer_screen_check": screen_check,
+                "is_employer_part": is_employer_part,
+                "adhar_check": adhar_check,
+                "pan_check": pan_check,
+                "video_check": video_check,
+                "selfie_check": selfie_check,
+                "tokens": tokens,
+                
+            }, status=status.HTTP_200_OK)
 
         except Exception as e:
             return handle_exception(e, "An error occurred while verifying OTP")
@@ -144,7 +129,7 @@ class VerifyOTP(APIView):
 ###################3---------------------------------Employee LOGIN
 class EmployeerLinkCheck(APIView):
     permission_classes = [IsAuthenticated]
-    def post(self, request, format=None):
+    def get(self, request, format=None):
         user = request.user
         print(f"User is :{user}")
         provided_access_token = request.META.get('HTTP_AUTHORIZATION', '').split(' ')[-1]
@@ -154,7 +139,7 @@ class EmployeerLinkCheck(APIView):
 
         if user.user_type!= "gigaff":
             return Response({'error': 'Only Giugs can view Request'}, status=status.HTTP_403_FORBIDDEN)
-        employee_id=request.data.get('employee_id')
+        employee_id=request.query_params.get('employee_id')
         if not employee_id:
             return Response({'error': 'Employee ID is required'}, status=status.HTTP_400_BAD_REQUEST)
         try:
@@ -417,6 +402,26 @@ class UserProfileView(APIView):
             return Response({'status': 'success','data':serializer.data}, status=status.HTTP_200_OK)
         except Exception as e:
             return handle_exception(e,"An error occured while fetching user profile")
+        
+################################3-----------------------Get Salary Tracking----------------#############
+class GetSalaryTracking(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, format=None):
+        user = request.user
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        if user.access_token!= provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type!="gigaff":
+            return Response({'error': 'User type is not Gig'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            employee=get_object_or_404(GigEmployee,user=user)
+            paginator=CurrentNewsPagination()
+            salaries = SalaryHistory.objects.filter(employee=employee).order_by('-id')
+            paginated_transactions=paginator.paginate_queryset(salaries ,request)
+            serializer = SalaryHistorySerializer(paginated_transactions, many=True)
+            return paginator.get_paginated_response({'status':'success','salary_data': serializer.data})
+        except Exception as e:
+            return handle_exception(e,"An error occurred while fetching salary tracking")
         
 
 ####################################3--------------------------SETUP FEESS SUBSCRIPTIONS----------------------------#######################
@@ -704,12 +709,11 @@ class CheckEWABalance(APIView):
         try:
             employee=get_object_or_404(GigEmployee,user=user,is_affilated=True)
             print(f"Employee is :{employee}")
-            salary_details = SalaryDetails.objects.filter(employee=employee).first()
-            print(f"")
+            salary_details, created = SalaryDetails.objects.get_or_create(employee=employee)
             if not salary_details:
                 return Response({"error": "Employee is not active or has no salary details"}, status=status.HTTP_404_NOT_FOUND)
             earned_wages = salary_details.calculate_earned_wages()
-            return Response({'message':'success', 'salary_details':earned_wages},status=status.HTTP_200_OK)
+            return Response({'message':'success', 'salary_details':salary_details.ewa_limit},status=status.HTTP_200_OK)
         except Exception as e:
             return handle_exception(e,"An error occurred while fetching EWA balance")
         

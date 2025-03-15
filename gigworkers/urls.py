@@ -15,6 +15,7 @@ urlpatterns = [
     path('EmployeerLinkCheck',EmployeerLinkCheck.as_view(), name='EmployeerLinkCheck'),
 #########################33------------------------------Home Screens------------------------------###########
     path('UserProfileView',UserProfileView.as_view(), name='UserProfileView'),
+    path('GetSalaryTracking',GetSalaryTracking.as_view(),name='GetSalaryTracking'),
     path('GetEwaCheckeer',GetEwaCheckeer.as_view(), name='GetEwaCheckeer'),
     path('CheckEWABalance',CheckEWABalance.as_view(),name='CheckEWABalance'),
     path('RequestEWA',RequestEWA.as_view(), name='RequestEWA'),
