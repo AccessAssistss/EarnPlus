@@ -1,6 +1,7 @@
 from django.db import models
 from .managers import *
 from django.utils import timezone
+from datetime import timedelta
 from employer.models import *
 from decimal import Decimal
 import uuid
@@ -39,7 +40,8 @@ class GigEmployee(models.Model):
     dob = models.DateField(null=True, blank=True) 
     department = models.CharField(max_length=100, null=True, blank=True)
     designation = models.CharField(max_length=100, null=True, blank=True) 
-    date_joined = models.DateField(null=True, blank=True)  
+    date_joined = models.DateField(null=True, blank=True)
+    hire_date=models.DateField(null=True, blank=True)  
     salary_date = models.DateField(null=True, blank=True) ###----For AFFILATED
     address = models.TextField(null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
@@ -139,14 +141,7 @@ class EmployeeVerification(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     
-###################---------------------Add Ratings by Employee
-class RateEmployee(models.Model):
-    employee = models.ForeignKey(GigEmployee, on_delete=models.CASCADE,null=True, blank=True)
-    employeer=models.ForeignKey('employer.Employeer',on_delete=models.CASCADE,null=True, blank=True)
-    description=models.CharField(max_length=100,null=True, blank=True)
-    rating = models.IntegerField(default=0, blank=True, null=True)
-    created_at=models.DateField()
-    is_deleted = models.BooleanField(default=False)
+
 ###############-----------------------Employee Salary History
 class SalaryHistory(models.Model):
     """Tracks past salaries and payments for employees Salaried Payment Cycle monthly"""

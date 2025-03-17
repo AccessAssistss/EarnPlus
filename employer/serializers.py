@@ -94,7 +94,25 @@ class EmployerLoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
     user_type = serializers.ChoiceField(choices=['employer'])
 
+###################---------------------Employer ADDITIONAL dETAILS
+class EmployerBusinessDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployerBusinessDetails
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
 
+class EmployerCompanyPoliciesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployerCompanyPolicies
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class EmployerEmailDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployerEmailsDetails
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
 ######------------------------Employerr Details
 class EmployerDetailsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -109,7 +127,6 @@ class EmployerDetailsSerializer(serializers.ModelSerializer):
             'is_deleted': {'read_only': True},
             'is_partnership': {'read_only': True},
         }
-      
 
 ###########################-----------------Salary Histories
 class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):

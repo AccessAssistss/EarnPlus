@@ -9,3 +9,45 @@ class EmployeerAdmin(admin.ModelAdmin):
     ordering = ('-created',)
 
 
+@admin.register(CountriesSelector)
+class CountriesSelectorAdmin(admin.ModelAdmin):
+    list_display=('id','country','created_at')
+
+
+@admin.register(StateMaster)
+class StateMasterAdmin(admin.ModelAdmin):
+    list_display = ('id','eng_state', 'hin_state')
+
+
+@admin.register(DistrictMaster)
+class DistrictMasterAdmin(admin.ModelAdmin):
+    list_display=('id','getstate','eng_district','hin_district','created_at')
+    def getstate(self, obj):
+        eng_dis_name = obj.fk_state.eng_state if obj.fk_state and obj.fk_state.eng_state else ""
+        hin_dis_name = obj.fk_state.hin_state if obj.fk_state and obj.fk_state.hin_state else ""
+        return f"{eng_dis_name} / {hin_dis_name}".strip(" / ")
+    
+
+@admin.register(RateEmployee)
+class RateEmployeeAdmin(admin.ModelAdmin):
+    list_display=('id','employee','rating','created_at')
+
+######################3---------------------------eMPLOYEER bUSINESS DETAILS
+@admin.register(EmployerBusinessDetails)
+class EmployerBusinessDetailsAdmin(admin.ModelAdmin):
+    list_display = ('employer', 'business_location', 'business_type', 'registration_number', 'gst_number', 'is_deleted')
+    list_filter = ('business_type', 'is_deleted', 'country', 'state')
+    search_fields = ('employer__name', 'business_location', 'registration_number', 'gst_number')
+#############----------------------------Employeer COMPANY pOLICES DETAILS
+@admin.register(EmployerCompanyPolicies)
+class EmployerCompanyPoliciesAdmin(admin.ModelAdmin):
+    list_display = ('employer', 'notice_period_days', 'probation_period_days', 'total_annual_leaves', 'working_hours_per_day')
+    list_filter = ('notice_period_days', 'probation_period_days', 'total_annual_leaves')
+    search_fields = ('employer__name',)
+
+####################----------------------------EmployerS cOMPANY eMAIL DETAILS
+@admin.register(EmployerEmailsDetails)
+class EmployerEmailsDetailsAdmin(admin.ModelAdmin):
+    list_display = ('employer', 'email', 'email_type', 'is_deleted')
+    list_filter = ('email_type', 'is_deleted')
+    search_fields = ('employer__name', 'email')

@@ -274,7 +274,130 @@ class UserProfileView(APIView):
       except Exception as e:
          return handle_exception(e,"An error occured while updating user profile")
      
-     
+###########################-------------------------Update EMPLOYEE additional details
+class UpdateEmployeeDetailsView(APIView):
+    def put(self, request, format=None):
+        user = request.user
+        print(f"User is {user.user_type}")
+        
+        #----------Validate access token
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        print(f"Access token is {provided_access_token}")
+        if user.access_token != provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        #------------Check if user is an employer
+        if user.user_type != "employer":
+            return Response({'error': 'User type is not Employer'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            employer = get_object_or_404(Employeer, user=user)
+            response_data = {}
+            #-------------Update business details if provided
+            if any(field in request.data for field in [
+                'business_location', 'business_type', 'business_description', 
+                'established_date', 'registration_number', 'gst_number',
+                'country', 'state', 'district', 'pincode'
+            ]):
+                business_data = {key: request.data[key] for key in request.data if key in [
+                    'business_location', 'business_type', 'business_description', 
+                    'established_date', 'registration_number', 'gst_number',
+                    'country', 'state', 'district', 'pincode'
+                ]}
+                
+                try:
+                    business_details = EmployerBusinessDetails.objects.get(employer=employer)
+                    serializer = EmployerBusinessDetailsSerializer(
+                        business_details, 
+                        data=business_data, 
+                        partial=True
+                    )
+                except EmployerBusinessDetails.DoesNotExist:
+                    serializer = EmployerBusinessDetailsSerializer(
+                        data={**business_data, 'employer': employer.id}
+                    )
+                if serializer.is_valid():
+                    business_details = serializer.save()
+                    response_data['business_details'] = serializer.data
+                else:
+                    return Response(
+                        {'error': 'Invalid business details data', 'details': serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            #-------------Update company policies if provided
+            if any(field in request.data for field in [
+                'notice_period_days', 'probation_period_days', 'total_annual_leaves',
+                'sick_leaves', 'casual_leaves', 'maternity_leaves', 'working_hours_per_day',
+                'overtime_policy', 'resignation_policy', 'remote_work_policy', 'other_policies'
+            ]):
+                policy_data = {key: request.data[key] for key in request.data if key in [
+                    'notice_period_days', 'probation_period_days', 'total_annual_leaves',
+                    'sick_leaves', 'casual_leaves', 'maternity_leaves', 'working_hours_per_day',
+                    'overtime_policy', 'resignation_policy', 'remote_work_policy', 'other_policies'
+                ]}
+                
+                try:
+                    company_policies = EmployerCompanyPolicies.objects.get(employer=employer)
+                    serializer = EmployerCompanyPoliciesSerializer(
+                        company_policies, 
+                        data=policy_data, 
+                        partial=True
+                    )
+                except EmployerCompanyPolicies.DoesNotExist:
+                    serializer = EmployerCompanyPoliciesSerializer(
+                        data={**policy_data, 'employer': employer.id}
+                    )
+                
+                if serializer.is_valid():
+                    company_policies = serializer.save()
+                    response_data['company_policies'] = serializer.data
+                else:
+                    return Response(
+                        {'error': 'Invalid company policies data', 'details': serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            if any(field in request.data for field in [
+                'email','email_type'
+            ]):
+                email_data = {key: request.data[key] for key in request.data if key in [
+                     'email','email_type'
+                ]}
+                try:
+                    company_email = EmployerEmailsDetails.objects.get(employer=employer)
+                    serializer = EmployerEmailDetailsSerializer(
+                        company_email, 
+                        data=policy_data, 
+                        partial=True
+                    )
+                except EmployerEmailsDetails.DoesNotExist:
+                    serializer = EmployerEmailDetailsSerializer(
+                        data={**email_data, 'employer': employer.id}
+                    )
+                
+                if serializer.is_valid():
+                    email_data  = serializer.save()
+                    response_data['email_data '] = serializer.data
+                else:
+                    return Response(
+                        {'error': 'Invalid company policies data', 'details': serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            if not response_data:
+                return Response(
+                    {'error': 'No valid data provided for update'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            return Response(
+                {'message': 'Employer details updated successfully', 'data': response_data},
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            return handle_exception(e,"An error occurred while updating")
+    
 ###################------------------------------Add Employees By Employeer---------------
 class AddEmployeeByEmployerView(APIView):
     permission_classes = [IsAuthenticated]
