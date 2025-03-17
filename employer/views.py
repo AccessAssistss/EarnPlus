@@ -452,3 +452,51 @@ class AddSalaryDataByEmployerView(APIView):
         except Exception as e:
             return handle_exception(e, "An error occurred while fetching salary data")
         
+############################------------------------Addd Rating BY Employeer--------------------#############
+class AddRatingByEmployeer(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, format=None):
+        user = request.user
+        print(f"User is {user.user_type}")
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        print(f"Access token is {provided_access_token}")
+        if user.access_token != provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type!="employer":
+            return Response({'error': 'User type is not Employer'}, status=status.HTTP_400_BAD_REQUEST)
+        employee_id = request.data.get('employee_id')
+        rating=request.data.get('rating',5)
+        description=request.data.get('description',None)
+        date=request.data.get('date')
+        if not ([employee_id,rating,date]):
+            return Response({'error': 'All required fields are missing'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            employer=get_object_or_404(Employeer,user=user)
+            employee=get_object_or_404(GigEmployee,employee_id=employee_id)
+            rating_obj=RateEmployee.objects.filter(employer=employer,employee=employee,created_at=date).first()
+            if rating_obj:
+                return Response({'error': 'You have already rated this employee.'}, status=status.HTTP_400_BAD_REQUEST)
+            rating_obj=RateEmployee.objects.create(employer=employer,employee=employee,rating=rating,description=description,date=date)
+            rating_obj.save()
+            return Response({"message": "Rating added successfully."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return handle_exception(e, "An error occurred while adding rating")
+        
+    def get_rating(self,request,format=None):
+        user = request.user
+        print(f"User is {user.user_type}")
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        print(f"Access token is {provided_access_token}")
+        if user.access_token != provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type!="employer":
+            return Response({'error': 'User type is not Employer'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            employer=get_object_or_404(Employeer,user=user)
+            data=RateEmployee.objects.filter(is_deleted=False)
+            paginator=CurrentNewsPagination()
+            paginated_transactions=paginator.paginate_queryset(data,request)
+            serializer = EmployeeRatingSerializer(paginated_transactions, many=True)
+            return paginator.get_paginated_response({'status':'success','rating_data': serializer.data})
+        except Exception as e:
+            return handle_exception(e, "An error occurred while fetching ratings")

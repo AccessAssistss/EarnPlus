@@ -601,6 +601,7 @@ class EmployeeBankInfo(APIView):
             return handle_exception(e,"An error occurred while Updating Bank Details")
         
 
+        
 ####################---------------------------------Add Employability and Personal Detaisl BY NON PARTNERSHIP-----------------#######
 class AddEmployeeByEmployerView(APIView):
     permission_classes = [IsAuthenticated]

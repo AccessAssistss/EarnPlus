@@ -120,3 +120,8 @@ class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):
             'salary_date',
             'daily_salary',
         ]
+##########################--------------------Employee Ratings 
+class EmployeeRatingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RateEmployee
+        fields = "__all__"

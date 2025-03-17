@@ -101,11 +101,17 @@ class GigEmployee(models.Model):
             #-------------For non-affiliated workers with variable payment cycle
             return timezone.now().date() + timedelta(days=self.payment_cycle)
 
-    
-
+######################--------------Employment Info
+class EmploymentInfo(models.Model):
+    employee=models.ForeignKey(GigEmployee,on_delete=models.CASCADE,null=True,blank=True)
+    hire_date=models.DateField(null=True, blank=True)
+    joining_date=models.DateField(null=True, blank=True)
+    basic_salary=models.FloatField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 #####################-------------------------Bank Details
 class BankDetails(models.Model):
-    salaried_employee= models.ForeignKey('gigworkers.GigEmployee', on_delete=models.CASCADE,null=True,blank=True)
+    salaried_employee= models.ForeignKey(GigEmployee, on_delete=models.CASCADE,null=True,blank=True)
     bank_name = models.CharField(max_length=100, null=True, blank=True)
     account_number = models.CharField(max_length=20, null=True, blank=True)
     account_holder_name = models.CharField(max_length=100, null=True, blank=True)
@@ -131,8 +137,16 @@ class EmployeeVerification(models.Model):
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-
+    
+    
+###################---------------------Add Ratings by Employee
+class RateEmployee(models.Model):
+    employee = models.ForeignKey(GigEmployee, on_delete=models.CASCADE,null=True, blank=True)
+    employeer=models.ForeignKey('employer.Employeer',on_delete=models.CASCADE,null=True, blank=True)
+    description=models.CharField(max_length=100,null=True, blank=True)
+    rating = models.IntegerField(default=0, blank=True, null=True)
+    created_at=models.DateField()
+    is_deleted = models.BooleanField(default=False)
 ###############-----------------------Employee Salary History
 class SalaryHistory(models.Model):
     """Tracks past salaries and payments for employees Salaried Payment Cycle monthly"""
