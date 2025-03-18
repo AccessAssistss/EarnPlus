@@ -14,8 +14,11 @@ media/
 media
 .env
 agrisarathi-64d6e-firebase-adminsdk-o94th-0f425c5ba0.json/
-Earnplus/settings.py
-Earnplus/__pycache__/
-Earnplus/__pycache__
+EarnPlus/settings.py
+EarnPlus/__pycache__/
+EarnPlus/__pycache__
 agrisarathi-64d6e-firebase-adminsdk-o94th-0f425c5ba0.json
 requirements.txt
+staticfiles/
+nohup.out
+__pycache__/
