@@ -24,12 +24,7 @@ class GigEmployee(models.Model):
         ('CONTRACTUAL_FIXED_VARIABLE', 'Contractual with Fixed & Variable Salary'),
         ('GIG_WORKER', 'Gig Worker with Variable Income')
     ]
-    payment_cycle = models.CharField(max_length=20, choices=[
-        ('DAILY', 'Daily'),
-        ('WEEKLY', 'Weekly'),
-        ('BIWEEKLY', 'Bi-Weekly'),
-        ('MONTHLY', 'Monthly')
-    ], default='MONTHLY')
+    payment_cycle = models.CharField(max_length=20,null=True,blank=True)
     employment_type = models.CharField(max_length=50, choices=EMPLOYMENT_TYPE_CHOICES, default='SALARIED')
     employee_name = models.CharField(max_length=100, null=True, blank=True)
     employee_id= models.CharField(max_length=100, null=True, blank=True)
