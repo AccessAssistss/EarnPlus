@@ -146,7 +146,7 @@ class EmployeeVerification(models.Model):
 class SalaryHistory(models.Model):
     """Tracks past salaries and payments for employees Salaried Payment Cycle monthly"""
     employee = models.ForeignKey(GigEmployee, on_delete=models.CASCADE,null=True,blank=True)
-    employer = models.ForeignKey(Employeer, on_delete=models.CASCADE,null=True,blank=True)
+    employer = models.ForeignKey('employer.Employeer', on_delete=models.CASCADE,null=True,blank=True)
     daily_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Salary per day Fixed
     salary_date = models.DateField()
     """Addition Field for Fixed Daily Salary and Variable Income for Contarctual Fixed+Variable"""
