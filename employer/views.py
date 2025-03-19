@@ -638,3 +638,25 @@ class AddRatingByEmployeer(APIView):
             return paginator.get_paginated_response({'status':'success','rating_data': serializer.data})
         except Exception as e:
             return handle_exception(e, "An error occurred while fetching ratings")
+        
+        
+###################-----------------------Employee Active and Inactive ---------------#########
+class GetHomeScreenKPI(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self,request,format=None):
+        user = request.user
+        print(f"User is {user.user_type}")
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        print(f"Access token is {provided_access_token}")
+        if user.access_token != provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type!="employer":
+            return Response({'error': 'User type is not Employer'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            employer=get_object_or_404(Employeer,user=user)
+            active_employees=GigEmployee.objects.filter(employer=employer,is_active=True).count()
+            inactive_employees=GigEmployee.objects.filter(employer=employer,is_active=False).count()
+            return Response({"active_employees": active_employees,"inactive_employees": inactive_employees}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return handle_exception(e, "An error occurred while fetching employer details")
+    
