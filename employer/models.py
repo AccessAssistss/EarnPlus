@@ -137,7 +137,6 @@ class RateEmployee(models.Model):
     employer = models.ForeignKey(Employeer, on_delete=models.CASCADE, null=True, blank=True, related_name='employee_ratings')
     description = models.CharField(max_length=100, null=True, blank=True)
     rating = models.IntegerField(default=0, blank=True, null=True)
-    created_at = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
     is_deleted = models.BooleanField(default=False)
-
 

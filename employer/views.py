@@ -480,7 +480,6 @@ class BulkEmployeeAdd(APIView):
             if not all(column in df.columns for column in required_columns):
                 return Response({'error': 'File does not contain required columns'}, status=status.HTTP_400_BAD_REQUEST)
             ###---------------Flag Handlers
-
             successful=0
             failed=0
             failed_entries=[]
@@ -590,22 +589,21 @@ class AddRatingByEmployeer(APIView):
         employee_id = request.data.get('employee_id')
         rating=request.data.get('rating',5)
         description=request.data.get('description',None)
-        date=request.data.get('date')
-        if not ([employee_id,rating,date]):
+        if not ([employee_id,rating]):
             return Response({'error': 'All required fields are missing'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             employer=get_object_or_404(Employeer,user=user)
             employee=get_object_or_404(GigEmployee,employee_id=employee_id)
-            rating_obj=RateEmployee.objects.filter(employer=employer,employee=employee,created_at=date).first()
+            rating_obj=RateEmployee.objects.filter(employer=employer,employee=employee).first()
             if rating_obj:
                 return Response({'error': 'You have already rated this employee.'}, status=status.HTTP_400_BAD_REQUEST)
-            rating_obj=RateEmployee.objects.create(employer=employer,employee=employee,rating=rating,description=description,date=date)
+            rating_obj=RateEmployee.objects.create(employer=employer,employee=employee,rating=rating,description=description)
             rating_obj.save()
             return Response({"message": "Rating added successfully."}, status=status.HTTP_200_OK)
         except Exception as e:
             return handle_exception(e, "An error occurred while adding rating")
         
-    def get_rating(self,request,format=None):
+    def get(self,request,format=None):
         user = request.user
         print(f"User is {user.user_type}")
         provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
