@@ -16,18 +16,14 @@ class CountriesSelector(models.Model):
 #####################------------------------------------States--------------------#################
 class StateMaster(models.Model):
     country = models.ForeignKey(CountriesSelector, on_delete=models.CASCADE, null=True, blank=True)
-    eng_state = models.CharField(null=True, blank=True, max_length=100)
-    hin_state = models.CharField(null=True, blank=True, max_length=100)
+    state = models.CharField(null=True, blank=True, max_length=100)
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
 ##################################--------------------District---------------------#############
 class DistrictMaster(models.Model):
     state = models.ForeignKey(StateMaster, on_delete=models.CASCADE, null=True, blank=True)
-    eng_district=models.CharField(null=True, blank=True, max_length=100)
-    hin_district=models.CharField(null=True, blank=True, max_length=100)
-    lat = models.FloatField(null=True, blank=True, max_length=100)
-    long = models.FloatField(null=True, blank=True, max_length=100)
+    district=models.CharField(null=True, blank=True, max_length=100)
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
