@@ -461,75 +461,92 @@ class AddEmployeeByEmployerView(APIView):
 ########################------------------------Add Employee Data Bulk
 class BulkEmployeeAdd(APIView):
     permission_classes = [IsAuthenticated]
+
     def post(self, request, format=None):
         user = request.user
         print(f"User is {user.user_type}")
         provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
         print(f"Access token is {provided_access_token}")
-        if user.access_token!= provided_access_token:
+        if user.access_token != provided_access_token:
             return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
-        if user.user_type!="employer":
+
+        if user.user_type != "employer":
             return Response({'error': 'User type is not Employer'}, status=status.HTTP_400_BAD_REQUEST)
-        file=request.FILES.get('file')
+
+        file = request.FILES.get('file')
         if not file:
             return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            employer=Employeer(user=user)
+            # Get employer instance linked to the user
+            employer = get_object_or_404(Employeer, user=user)
+
             df = pd.read_excel(file, engine='openpyxl')
-            required_columns=['employee_name', 'employee_id', 'email', 'mobile', 'designation', 'dob', 'department', 'date_joined', 'employment_type', 'payment_cycle', 'address']
+            required_columns = ['employee_name', 'employee_id', 'email', 'mobile', 'designation', 'dob', 'department', 'date_joined', 'employment_type', 'payment_cycle', 'address']
+
             if not all(column in df.columns for column in required_columns):
                 return Response({'error': 'File does not contain required columns'}, status=status.HTTP_400_BAD_REQUEST)
-            ###---------------Flag Handlers
-            successful=0
-            failed=0
-            failed_entries=[]
-            new_employees=[]
+
+            successful = 0
+            failed = 0
+            failed_entries = []
+            new_employees = []
+
             existing_mobiles = set(CustomUser.objects.values_list('mobile', flat=True))
-            existing_employee_ids = set(GigEmployee.objects.values_list('employee_id',flat=True))
-            for index, row in df.iterrows():
-                try:
-                    mobile=str(row['mobile'])
-                    employee_id=str(row['employee_id'])
-                    if mobile in existing_mobiles or employee_id in existing_employee_ids:
-                        failed += 1
-                        failed_entries.append({"employee_id": employee_id, "mobile": mobile, "error": "Duplicate entry"})
-                        continue
-                    user = CustomUser.objects.create_user(
-                            mobile=mobile,  
-                            user_type="gigaff"  
+            existing_employee_ids = set(GigEmployee.objects.values_list('employee_id', flat=True))
+
+            with transaction.atomic():
+                for index, row in df.iterrows():
+                    try:
+                        mobile = str(row['mobile'])
+                        employee_id = str(row['employee_id'])
+
+                        #--------------Check for duplicates
+                        if mobile in existing_mobiles or employee_id in existing_employee_ids:
+                            failed += 1
+                            failed_entries.append({"employee_id": employee_id, "mobile": mobile, "error": "Duplicate entry"})
+                            continue
+
+                        user = CustomUser.objects.create_user(
+                            mobile=mobile,
+                            user_type="gigaff"
                         )
-                    new_employees.append(GigEmployee(
-                        user=user,
-                        employee_name=row['employee_name'],
-                        employee_id=employee_id,
-                        email=row.get('email', None),
-                        mobile=mobile,
-                        designation=row['designation'],
-                        dob=row['dob'],
-                        department=row['department'],
-                        date_joined=row['date_joined'],
-                        employment_type=row['employment_type'],
-                        payment_cycle=row['payment_cycle'],
-                        address=row.get('address', None),
-                        employeer=employer
-                    ))
 
-                    successful += 1
-                
-                except Exception as e:
-                    failed += 1
-                    failed_entries.append({"employee_id": row['employee_id'], "mobile": row['mobile'], "error": str(e)})
+                        #---------------Create new GigEmployee instance
+                        new_employees.append(GigEmployee(
+                            user=user,
+                            employee_name=row['employee_name'],
+                            employee_id=employee_id,
+                            email=row.get('email', None),
+                            mobile=mobile,
+                            designation=row['designation'],
+                            dob=row['dob'],
+                            department=row['department'],
+                            date_joined=row['date_joined'],
+                            employment_type=row['employment_type'],
+                            payment_cycle=row['payment_cycle'],
+                            address=row.get('address', None),
+                            employeer=employer
+                        ))
 
-            #-----------Bulk insert new employees
-            if new_employees:
-                GigEmployee.objects.bulk_create(new_employees, batch_size=1000)  # Efficient bulk insert
+                        successful += 1
+
+                    except Exception as e:
+                        failed += 1
+                        failed_entries.append({"employee_id": row['employee_id'], "mobile": row['mobile'], "error": str(e)})
+
+                #----------Bulk insert new employees
+                if new_employees:
+                    GigEmployee.objects.bulk_create(new_employees, batch_size=1000)  # Efficient bulk insert
+
             return Response({
                 "status": "success",
                 "message": f"{successful} employees added successfully, {failed} failed",
                 "failed_entries": failed_entries
             }, status=status.HTTP_200_OK)
+
         except Exception as e:
-            return handle_exception(e,"An error occurred while bulk adding employees")
+            return handle_exception(e, "An error occurred while bulk adding employees")
 
 ##################################3-----------------------Add Salary Data by Employeer
 class AddSalaryDataByEmployerView(APIView):
