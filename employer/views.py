@@ -654,9 +654,9 @@ class GetHomeScreenKPI(APIView):
             return Response({'error': 'User type is not Employer'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             employer=get_object_or_404(Employeer,user=user)
-            active_employees=GigEmployee.objects.filter(employer=employer,is_active=True).count()
-            inactive_employees=GigEmployee.objects.filter(employer=employer,is_active=False).count()
-            return Response({"active_employees": active_employees,"inactive_employees": inactive_employees}, status=status.HTTP_200_OK)
+            active_employees=GigEmployee.objects.filter(employeer=employer,is_affilated=True).count()
+            inactive_employees=GigEmployee.objects.filter(employeer=employer,is_affilated=False).count()
+            return Response({"status":"success","active_employees": active_employees,"inactive_employees": inactive_employees}, status=status.HTTP_200_OK)
         except Exception as e:
             return handle_exception(e, "An error occurred while fetching employer details")
     
