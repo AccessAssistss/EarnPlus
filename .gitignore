@@ -22,3 +22,4 @@ requirements.txt
 staticfiles/
 nohup.out
 __pycache__/
+static/
