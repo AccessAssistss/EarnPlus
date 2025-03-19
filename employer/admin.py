@@ -16,16 +16,12 @@ class CountriesSelectorAdmin(admin.ModelAdmin):
 
 @admin.register(StateMaster)
 class StateMasterAdmin(admin.ModelAdmin):
-    list_display = ('id','eng_state', 'hin_state')
+    list_display = ('id','state')
 
 
 @admin.register(DistrictMaster)
 class DistrictMasterAdmin(admin.ModelAdmin):
-    list_display=('id','getstate','eng_district','hin_district','created_at')
-    def getstate(self, obj):
-        eng_dis_name = obj.fk_state.eng_state if obj.fk_state and obj.fk_state.eng_state else ""
-        hin_dis_name = obj.fk_state.hin_state if obj.fk_state and obj.fk_state.hin_state else ""
-        return f"{eng_dis_name} / {hin_dis_name}".strip(" / ")
+    list_display=('id','district','created_at')
     
 
 @admin.register(RateEmployee)
