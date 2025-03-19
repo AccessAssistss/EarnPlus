@@ -42,7 +42,7 @@ class CustomUser(AbstractUser, PermissionsMixin):
     last_name = None
     mobile = models.CharField(max_length=10, validators=[validate_mobile_no])
     user_type = models.CharField(max_length=20, choices=[('gigaff', 'gigaff'), ('nongigaff', 'nongigaff'),('employer','employer'),
-                                                         ('loanadmin','loanadmin'),])
+                                                         ('loanadmin','loanadmin'),('associate','associate'),])
     access_token = models.CharField(max_length=1000, blank=True, null=True)
     token_expires_at = models.DateTimeField(blank=True, null=True)
     is_admin = models.BooleanField(default=False)

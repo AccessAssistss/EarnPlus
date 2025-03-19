@@ -40,7 +40,7 @@ class EmployerRegistration(APIView):
             ).exists()
             print(f"User is :{user}")
             if user:
-                return Response({'error': 'User with this mobile number already exists'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'User with this mobile number or Email already exists'}, status=status.HTTP_400_BAD_REQUEST)
             serializer = EmployerRegistrationSerializer(data=request.data)
             if serializer.is_valid():
                 user = serializer.save()

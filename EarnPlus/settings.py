@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'gigworkers',
     'loanadmin',
     'employer',
+    'associate',
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',

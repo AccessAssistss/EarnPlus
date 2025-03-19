@@ -73,6 +73,7 @@ class VerifyOTP(APIView):
                 user, created = CustomUser.objects.get_or_create(mobile=TEST_MOBILE, defaults={"user_type": user_type})
                 is_existing_user = GigEmployee.objects.filter(user=user).exists()
                 return Response({
+                    "status":"success",
                     "message": "Test user OTP verified successfully", 
                     "is_existing_user": is_existing_user
                 }, status=status.HTTP_200_OK)
@@ -111,6 +112,7 @@ class VerifyOTP(APIView):
             tokens = create_gig_token(user, user_type)
 
             return Response({
+                "status":"success",
                 "message": "OTP verified successfully.",
                 "is_existing_user": is_existing_user,
                 "employer_screen_check": screen_check,
