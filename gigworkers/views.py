@@ -40,6 +40,7 @@ class UserSendOTP(APIView):
                     sendmobile_otp(mobile, otp)
                     store_otp(mobile, otp)
                     return Response({
+                        'status':'success',
                         'message': f"OTP sent successfully to {user.mobile}",
                         'otp': otp,
                         'is_existing_user': is_existing_user
@@ -48,6 +49,7 @@ class UserSendOTP(APIView):
                     sendmobile_otp(mobile, otp)
                     store_otp(mobile, otp)
                     return Response({
+                        'status':'success',
                         'message': f"OTP sent successfully to {mobile}",
                         'otp': otp,
                         'is_existing_user': False
