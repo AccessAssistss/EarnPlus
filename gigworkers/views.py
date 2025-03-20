@@ -646,10 +646,6 @@ class AddEmployeeByEmployerView(APIView):
         except Exception as e:
             return handle_exception(e,"An error occurred while listing employees")
 
-
-        
-    
- 
 ################--------------------------Refersh Token-------------------####################
 class EmployeeTokenRefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):

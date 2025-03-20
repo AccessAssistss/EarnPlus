@@ -427,17 +427,41 @@ class AddEmployeeByEmployerView(APIView):
             return handle_exception(e,"An error occured while adding employee")
     def get(self, request, format=None):
         user = request.user
-
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        print(f"Access token is {provided_access_token}")
         if user.user_type != "employer":
             return Response({'error': 'User is not an employer'}, status=status.HTTP_403_FORBIDDEN)
+        if user.access_token != provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
         try:
             employer = get_object_or_404(Employeer, user=user)
+            paginator=CurrentNewsPagination()
             employees = GigEmployee.objects.filter(employeer=employer)
-
-            serializer = AddEmployeeSerializer(employees, many=True)
-            return Response({'status': 'success', 'employees': serializer.data}, status=status.HTTP_200_OK)
+            paginated_transactions=paginator.paginate_queryset(employees,request)
+            serializer = AddEmployeeSerializer(paginated_transactions, many=True)
+            return paginator.get_paginated_response({'status':'success','data': serializer.data})
         except Exception as e:
             return handle_exception(e, "An error occurred while fetching employees")
+        
+    def delete(sef,request,format=None):
+        """Delete an employee by their employee ID."""
+        user = request.user
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        print(f"Access token is {provided_access_token}")
+        if user.user_type != "employer":
+            return Response({'error': 'User is not an employer'}, status=status.HTTP_403_FORBIDDEN)
+        if user.access_token != provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        employee_id = request.data.get('employee_id')
+        if not employee_id:
+            return Response({'error': 'Employee ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            employer = get_object_or_404(Employeer, user=user)
+            employee = get_object_or_404(GigEmployee, employeer=employer, employee_id=employee_id)
+            employee.delete()
+            return Response({'status':'success','message':'Employee deleted successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return handle_exception(e, "An error occurred while deleting employee")
     
     def put(self, request, employee_id, format=None):
         """Update an employee's details partially."""
@@ -638,6 +662,25 @@ class AddRatingByEmployeer(APIView):
             return paginator.get_paginated_response({'status':'success','rating_data': serializer.data})
         except Exception as e:
             return handle_exception(e, "An error occurred while fetching ratings")
+    def delete(self,request,format=None):
+        user = request.user
+        print(f"User is {user.user_type}")
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        print(f"Access token is {provided_access_token}")
+        if user.access_token != provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type!="employer":
+            return Response({'error': 'User type is not Employer'}, status=status.HTTP_400_BAD_REQUEST)
+        rating_id=request.data.get('rating_id')
+        if not rating_id:
+            return Response({'error': 'Rating ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            employer=get_object_or_404(Employeer,user=user)
+            rating=get_object_or_404(RateEmployee,id=rating_id,employer=employer)
+            rating.delete()
+            return Response({"message": "Rating deleted successfully."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return handle_exception(e, "An error occurred while deleting rating")
         
         
 ###################-----------------------Employee Active and Inactive ---------------#########

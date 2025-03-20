@@ -87,7 +87,6 @@ class EmployerCompanyPolicies(models.Model):
         verbose_name = "Company Policy"
         verbose_name_plural = "Company Policies"
 
-
 ########################----------------------Employer Emails Details
 class EmployerEmailsDetails(models.Model):
     employer = models.ForeignKey(Employeer, on_delete=models.CASCADE,null=True,blank=True)
@@ -113,7 +112,6 @@ class EmployerWorkLocation(models.Model):
     total_employees=models.IntegerField(default=0)
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
 
 ######################---------------------------Email OTP Models---------------####################
 class EmailOtp(models.Model):
