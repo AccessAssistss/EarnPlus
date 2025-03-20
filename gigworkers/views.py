@@ -7,8 +7,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
+from rest_framework_simplejwt.authentication import JWTAuthentication
 import random
 from .managers import *
+from associate.models import *
 from django.shortcuts import get_object_or_404
 from .models import *
 from django.db import transaction
@@ -132,6 +134,7 @@ class VerifyOTP(APIView):
 
 ###################3---------------------------------Employee LOGIN
 class EmployeerLinkCheck(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def get(self, request, format=None):
         user = request.user
@@ -174,6 +177,7 @@ class EmployeesList(APIView):
 
 ###########################-------------------------Adhaar vERFCIATION AND sTRATUS uPDATES----------------------############
 class AdhaarOTPSent(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def post(self, request):
         """
@@ -209,6 +213,7 @@ class AdhaarOTPSent(APIView):
            return handle_exception(e,"An error occured while sending OTP")
 ####################################------------------------------AADHAR OTP VERIFIVCATIONS
 class AdhaarOTPVerification(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def post(self, request):
         """
@@ -245,6 +250,7 @@ class AdhaarOTPVerification(APIView):
 
 #################-----------------------------------------------PAN VERFICATION AND GET STATUS-------------------------################################
 class VerifyPan(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def post(self, request):
         """
@@ -308,6 +314,7 @@ class VerifyPan(APIView):
             return handle_exception(e,"An error occurred while checking PAN status")
 #####################################3-------------------FACE LIVELESSNESS---------------------------------
 class FaceLivelinessAPI(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
     def post(self, request):
@@ -362,34 +369,51 @@ class FaceLivelinessAPI(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-###################-------------------------------Video Kyc 
-class VideoKyc(APIView):
+        
+########################----------------------Book KYC Slot BY Employeee-----------------#################
+class GetBookKYCSlotByEmployeee(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
-    def post(self, request):
-        """
-        Accepts User Name and PAN NO AS INPUT.
-        """
+    def get(self,request,format=None):
         user = request.user
-        provided_access_token = request.META.get('HTTP_AUTHORIZATION', '').split(' ')[-1]
-
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
         if user.access_token!= provided_access_token:
             return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
-
-        if user.user_type!= "gigaff":
-            return Response({'error': 'Only Giugs can view Request'}, status=status.HTTP_403_FORBIDDEN)
-        file=request.FILES.get('file')
-        if not file:
-            return Response({"error": "File is required"}, status=status.HTTP_400_BAD_REQUEST)  
+        if user.user_type!="gigaff":
+            return Response({'error': 'User type is not Gig'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             employee=get_object_or_404(GigEmployee,user=user)
-            verification=get_object_or_404(EmployeeVerification,employe=employee)
-            verification.video_kyc=file
-            verification.save()
-            return Response({"message": "Video KYC uploaded successfully."}, status=status.HTTP_200_OK)
+            slots=AddAssoicateBookingSlots.objects.filter(is_deleted=False)
+            serializer=AssociatesSlotSerializer(slots,many=True)
+            return Response({'status':'success','data':serializer.data}, status=status.HTTP_200_OK)
         except Exception as e:
-            return handle_exception(e,"An error occurred while uploading video KYC")
+            return handle_exception(e,"An error occurred while fetching slots")
+    def post(self,request,format=None):
+        user = request.user
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        if user.access_token != provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type!="gigaff":
+            return Response({'error': 'User type is not Gig'}, status=status.HTTP_400_BAD_REQUEST)
+        slot=request.data.get('slot')
+        date=request.data.get('date')
+        if not slot or not date:
+            return Response({'error': 'Slot & Date is required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            employee=get_object_or_404(GigEmployee,user=user)
+            active_booking=BookkycEmployee.objects.filter(employee=employee).exists()
+            if active_booking:
+                return Response({'error': 'You already has an active booking'}, status=status.HTTP_400_BAD_REQUEST)
+            with transaction.atomic():
+                booking=BookkycEmployee(employee=employee,slot=slot,date=date)
+                booking.save()
+            return Response({'status':'success','message':'Slot Booked Successfully','booking_id':booking.id}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return handle_exception(e,"An error occurred while Booking Slots")
+
 ############################-------------------------------User ProfiLE View
 class UserProfileView(APIView):
+  authentication_classes = [JWTAuthentication]
   permission_classes = [IsAuthenticated]
   def get(self, request, format=None):
         user = request.user
@@ -409,6 +433,7 @@ class UserProfileView(APIView):
         
 ################################3-----------------------Get Salary Tracking----------------#############
 class GetSalaryTracking(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def get(self, request, format=None):
         user = request.user
@@ -432,6 +457,7 @@ class GetSalaryTracking(APIView):
 #1.BuySubscription
 razorpay_client = razorpay.Client(auth=(os.environ.get('RAZORPAY_API_KEY'),os.environ.get('RAZORPAY_API_SECRET')))    
 class BuyFranchiseSubscription(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, format=None):
@@ -493,6 +519,7 @@ class BuyFranchiseSubscription(APIView):
         
 #######----------------Franchise Payment Success
 class FranchisePaymentSuccess(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     async def post(self, request, format=None):
         user = request.user
@@ -565,6 +592,7 @@ class FranchisePaymentSuccess(APIView):
 
 ##################-----------------------------Add Bank infor by Gig Employee------------------##########
 class EmployeeBankInfo(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def post(self, request, format=None):
         user = request.user
@@ -608,6 +636,7 @@ class EmployeeBankInfo(APIView):
         
 ####################---------------------------------Add Employability and Personal Detaisl BY NON PARTNERSHIP-----------------#######
 class AddEmployeeByEmployerView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def post(self, request, format=None):
         user = request.user
@@ -675,6 +704,7 @@ class EmployeeTokenRefreshView(TokenRefreshView):
     
 ########------------------------------Get Ewa Checkeer of User
 class GetEwaCheckeer(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def get(self, request, format=None):
         user = request.user
@@ -721,6 +751,7 @@ class CheckEWABalance(APIView):
 ######################-------------------------Request EWA Balance by Employee
 razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 class RequestEWA(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     @transaction.atomic
     def post(self, request, format=None):

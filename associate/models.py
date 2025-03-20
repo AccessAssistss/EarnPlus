@@ -1,6 +1,9 @@
 from django.db import models
 from gigworkers.managers import *
 from .choices import *
+from gigworkers.models import *
+
+from datetime import datetime
 
 #################-----------------------Customer Associate-------------------####################
 class Associate(models.Model):
@@ -20,11 +23,30 @@ class BookingSlots(models.Model):
     slot = models.CharField(max_length=200, choices=slot_choices)
     day_weeks=models.CharField(max_length=200, choices=day_choices,default="Monday")
     created_at = models.DateField(auto_now_add=True)
-    last_updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_deleted=models.BooleanField(default=False)
 
 ###############--------------------------Associate Add Expert Slots--------------------------###############
-class AddExpertBookingSlots(models.Model):
-    expert = models.ForeignKey(Associate, on_delete=models.CASCADE, null=True, blank=True)
+class AddAssoicateBookingSlots(models.Model):
+    associate = models.ForeignKey(Associate, on_delete=models.CASCADE, null=True, blank=True)
     slot = models.ForeignKey(BookingSlots, on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateField(auto_now_add=True)
-    last_updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_deleted=models.BooleanField(default=False)
+    
+    
+########################-------------------Book KYC Slot with Employee-----------------##########
+class BookkycEmployee(models.Model):
+    employee=models.ForeignKey('gigworkers.GigEmployee',on_delete=models.CASCADE, null=True, blank=True)
+    associate=models.ForeignKey(Associate,on_delete=models.CASCADE, null=True, blank=True)
+    slot=models.ForeignKey(AddAssoicateBookingSlots,on_delete=models.CASCADE, null=True, blank=True)
+    slot_date=models.DateField(null=True, blank=True)
+    created_at = models.DateField(auto_now_add=True)
+    meet_link=models.URLField(blank=True,null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_deleted=models.BooleanField(default=False)
+    
+    def save(self,*args, **kwargs):
+        if self.slot and self.slot_date and not self.meet_link:
+            slot_time=self.slot.slot.slot.split(' - ')[0]
+            slot__24hr=datetime.strptime(slot_time,"%I:%M %p").strftime("%H:%M")

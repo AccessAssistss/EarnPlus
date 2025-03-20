@@ -24,6 +24,11 @@ class GigEmployee(models.Model):
         ('CONTRACTUAL_FIXED_VARIABLE', 'Contractual with Fixed & Variable Salary'),
         ('GIG_WORKER', 'Gig Worker with Variable Income')
     ]
+    kyc_status = models.CharField(max_length=100, choices=[
+        ('Pending', 'Pending'),
+        ('In Process', 'In Process'),
+        ('Completed', 'Completed'),
+    ], default='Pending')
     payment_cycle = models.CharField(max_length=20,null=True,blank=True)
     employment_type = models.CharField(max_length=50, choices=EMPLOYMENT_TYPE_CHOICES, default='SALARIED')
     employee_name = models.CharField(max_length=100, null=True, blank=True)
@@ -42,6 +47,7 @@ class GigEmployee(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
+    kyc_verified = models.BooleanField(default=False)
     is_employer_screen = models.BooleanField(default=False)
     is_affilated = models.BooleanField(default=True)
     buy_franchise= models.BooleanField(default=False)
@@ -129,14 +135,9 @@ class EmployeeVerification(models.Model):
     aadhar_verified = models.BooleanField(default=False)
     selfie = models.ImageField(upload_to='employee/selfies', null=True, blank=True)
     selfie_verified =models.BooleanField(default=False)
-    video_kyc = models.FileField(upload_to='employee/video_kyc', null=True, blank=True)
-    video_verified =models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
-    
-
 ###############-----------------------Employee Salary History
 class SalaryHistory(models.Model):
     """Tracks past salaries and payments for employees Salaried Payment Cycle monthly"""

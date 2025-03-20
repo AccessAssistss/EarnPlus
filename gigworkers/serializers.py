@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .managers import *
 from .models import *
+from associate.models import *
 from employer.models import *
 from django.db.models import Sum
 #####################------------------------Gig Bank Details
@@ -47,6 +48,22 @@ class EmployeeVerificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployeeVerification
         fields = ['pan_number', 'aadhar_number', 'selfie', 'video_kyc', 'is_verified']
+        
+################------------------Slots by Associates-------------###########
+class AssociatesSlotSerializer(serializers.ModelSerializer):
+    slot = serializers.SerializerMethodField()
+    slot_id=serializers.SerializerMethodField()
+    weeks=serializers.SerializerMethodField()
+    class Meta:
+        model = AddAssoicateBookingSlots
+        fields = ["id", "slot","slot_id","weeks"]
+
+    def get_slot(self, obj):
+        return obj.slot.slot if obj.slot else None
+    def get_slot_id(self, obj):
+        return obj.slot.id if obj.slot else None
+    def get_weeks(self,obj):
+        return obj.slot.day_weeks if obj.slot else None
 
 ###########################-----------------Salary Histories
 class SalaryHistorySerializer(serializers.ModelSerializer):

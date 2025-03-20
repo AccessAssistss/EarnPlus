@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from gigworkers.utils import *
 from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -106,6 +107,7 @@ class FCMTokenView(APIView):
         
 ####--------------------------------Token Checker
 class TockenChecker(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def get(self,request,format=None):
         user=request.user
@@ -237,6 +239,7 @@ class PasswordResetAPIView(APIView):
             )  
 ############################--------------------------------Employeer Profiles---------------------------#####################    
 class UserProfileView(APIView):
+  authentication_classes = [JWTAuthentication]
   permission_classes = [IsAuthenticated]
   def get(self, request, format=None):
         user = request.user
@@ -276,6 +279,8 @@ class UserProfileView(APIView):
      
 ###########################-------------------------Update EMPLOYEE additional details
 class UpdateEmployeeDetailsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def put(self, request, format=None):
         user = request.user
         print(f"User is {user.user_type}")
@@ -400,6 +405,7 @@ class UpdateEmployeeDetailsView(APIView):
     
 ###################------------------------------Add Employees By Employeer---------------
 class AddEmployeeByEmployerView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def post(self, request, format=None):
         user = request.user
@@ -484,6 +490,7 @@ class AddEmployeeByEmployerView(APIView):
 
 ########################------------------------Add Employee Data Bulk
 class BulkEmployeeAdd(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, format=None):
@@ -574,6 +581,7 @@ class BulkEmployeeAdd(APIView):
 
 ##################################3-----------------------Add Salary Data by Employeer
 class AddSalaryDataByEmployerView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def post(self, request, format=None):
         user = request.user
@@ -617,6 +625,7 @@ class AddSalaryDataByEmployerView(APIView):
         
 ############################------------------------Addd Rating BY Employeer--------------------#############
 class AddRatingByEmployeer(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def post(self, request, format=None):
         user = request.user
@@ -685,6 +694,7 @@ class AddRatingByEmployeer(APIView):
         
 ###################-----------------------Employee Active and Inactive ---------------#########
 class GetHomeScreenKPI(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def get(self,request,format=None):
         user = request.user

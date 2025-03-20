@@ -16,10 +16,31 @@ class BookingSlotsAdmin(admin.ModelAdmin):
     list_filter = ('day_weeks',)
     ordering = ('-created_at',)
 
-# AddExpertBookingSlots Admin
-@admin.register(AddExpertBookingSlots)
-class AddExpertBookingSlotsAdmin(admin.ModelAdmin):
-    list_display = ('expert', 'slot', 'created_at', 'last_updated_at')
-    search_fields = ('expert__name', 'slot__slot')
-    list_filter = ('created_at',)
+#################-------------------Booking Slots Admin--------------------------################
+@admin.register(BookingSlots)
+class BookingSlotsAdmin(admin.ModelAdmin):
+    list_display = ('slot', 'day_weeks', 'created_at', 'updated_at', 'is_deleted')
+    list_filter = ('day_weeks', 'is_deleted')
+    search_fields = ('slot', 'day_weeks')
+    list_editable = ('is_deleted',)
+    ordering = ('-created_at',)
+
+
+#################-------------------Associate Booking Slots Admin--------------------------################
+@admin.register(AddAssoicateBookingSlots)
+class AddAssoicateBookingSlotsAdmin(admin.ModelAdmin):
+    list_display = ('associate', 'slot', 'created_at', 'updated_at', 'is_deleted')
+    list_filter = ('associate', 'is_deleted')
+    search_fields = ('associate__name', 'slot__slot')
+    list_editable = ('is_deleted',)
+    ordering = ('-created_at',)
+
+
+#################-------------------Book KYC Slot with Employee Admin--------------------------################
+@admin.register(BookkycEmployee)
+class BookkycEmployeeAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'associate', 'slot', 'created_at', 'updated_at', 'is_deleted')
+    list_filter = ('associate', 'employee', 'is_deleted')
+    search_fields = ('employee__employee_name', 'associate__name', 'slot__slot__slot')
+    list_editable = ('is_deleted',)
     ordering = ('-created_at',)

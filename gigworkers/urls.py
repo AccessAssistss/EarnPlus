@@ -10,7 +10,6 @@ urlpatterns = [
     path('AdhaarOTPVerification',AdhaarOTPVerification.as_view(), name='AdhaarOTPVerification'),
     path('VerifyPan',VerifyPan.as_view(), name='VerifyPan'),
     path('FaceLivelinessAPI',FaceLivelinessAPI.as_view(), name='FaceLivelinessAPI'),
-    path('VideoKyc',VideoKyc.as_view(), name='VideoKyc'),
     path('EmployeeBankInfo',EmployeeBankInfo.as_view(), name='EmployeeBankInfo'),
     path('EmployeerLinkCheck',EmployeerLinkCheck.as_view(), name='EmployeerLinkCheck'),
 #########################33------------------------------Home Screens------------------------------###########
