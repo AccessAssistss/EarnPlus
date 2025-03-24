@@ -12,6 +12,7 @@ urlpatterns = [
     path('FaceLivelinessAPI',FaceLivelinessAPI.as_view(), name='FaceLivelinessAPI'),
     path('EmployeeBankInfo',EmployeeBankInfo.as_view(), name='EmployeeBankInfo'),
     path('EmployeerLinkCheck',EmployeerLinkCheck.as_view(), name='EmployeerLinkCheck'),
+    path('GetBookKYCSlotByEmployeee',GetBookKYCSlotByEmployeee.as_view(), name='GetBookKYCSlotByEmployeee'),
 #########################33------------------------------Home Screens------------------------------###########
     path('UserProfileView',UserProfileView.as_view(), name='UserProfileView'),
     path('GetSalaryTracking',GetSalaryTracking.as_view(),name='GetSalaryTracking'),
