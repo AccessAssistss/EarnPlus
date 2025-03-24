@@ -11,18 +11,9 @@ class AssociateAdmin(admin.ModelAdmin):
 # BookingSlots Admin
 @admin.register(BookingSlots)
 class BookingSlotsAdmin(admin.ModelAdmin):
-    list_display = ('slot', 'day_weeks', 'created_at', 'last_updated_at')
-    search_fields = ('slot', 'day_weeks')
-    list_filter = ('day_weeks',)
-    ordering = ('-created_at',)
-
-#################-------------------Booking Slots Admin--------------------------################
-@admin.register(BookingSlots)
-class BookingSlotsAdmin(admin.ModelAdmin):
-    list_display = ('slot', 'day_weeks', 'created_at', 'updated_at', 'is_deleted')
-    list_filter = ('day_weeks', 'is_deleted')
-    search_fields = ('slot', 'day_weeks')
-    list_editable = ('is_deleted',)
+    list_display = ('slot', 'created_at')
+    search_fields = ('slot',)
+    list_filter = ('slot',)
     ordering = ('-created_at',)
 
 

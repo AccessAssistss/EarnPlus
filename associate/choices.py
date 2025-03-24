@@ -29,13 +29,3 @@ slot_choices=[
     ("4:30 p.m - 4:45 p.m", "4:30 p.m - 4:45 p.m"),
     ("4:45 p.m - 5:00 p.m", "4:45 p.m - 5:00 p.m"),
 ]
-day_choices=[
-    ("Monday", "Monday"),
-    ("Tuesday", "Tuesday"),
-    ("Wednesday", "Wednesday"),
-    ("Thursday", "Thursday"),
-    ("Friday", "Friday"),
-    ("Saturday", "Saturday"),
-    ("Sunday", "Sunday"),
-    
-]

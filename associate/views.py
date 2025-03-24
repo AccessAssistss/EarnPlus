@@ -128,10 +128,10 @@ class AddSlotbyAssociate(APIView):
                     booking_slot=get_object_or_404(BookingSlots,id=i)
                 except BookingSlots.DoesNotExist:
                      return Response({'error': f'Slot with ID {i} does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
-                if AddAssoicateBookingSlots.objects.filter(assoicate=assoicate,slot=booking_slot).exists():
+                if AddAssoicateBookingSlots.objects.filter(associate=assoicate,slot=booking_slot).exists():
                     skipped_slots.append(i)
                     continue
-                add_slot=AddAssoicateBookingSlots.objects.create(assoicate=assoicate,slot=booking_slot)
+                add_slot=AddAssoicateBookingSlots.objects.create(associate=assoicate,slot=booking_slot)
                 added_slots.append(add_slot.id)
             return Response({'message': 'Slots added successfully'}, status=status.HTTP_201_CREATED)
         except Exception as e:

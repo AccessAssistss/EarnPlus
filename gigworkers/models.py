@@ -35,11 +35,21 @@ class GigEmployee(models.Model):
     employee_id= models.CharField(max_length=100, null=True, blank=True)
     email = models.EmailField(max_length=100, null=True, blank=True)
     mobile = models.CharField(max_length=10, validators=[validate_mobile_no])
-    gender=models.CharField(null=True, blank=True, max_length=100)
+    gender= models.CharField(max_length=100, choices=[
+        ('Male', 'Male'),
+        ('Female', 'Female'),
+        ('Unknown', 'Unknown'),
+    ], null=True,blank=True)
     fcm_token=models.CharField(null=True, blank=True, max_length=100)
     dob = models.DateField(null=True, blank=True) 
     department = models.CharField(max_length=100, null=True, blank=True)
     designation = models.CharField(max_length=100, null=True, blank=True) 
+    pan_no=models.CharField(max_length=100, null=True, blank=True)
+    marital_status= models.CharField(max_length=100, choices=[
+        ('Married', 'Married'),
+        ('Single', 'Single'),
+        ('Divorced', 'Divorced'),
+    ], null=True,blank=True)
     date_joined = models.DateField(null=True, blank=True)
     hire_date=models.DateField(null=True, blank=True)  
     salary_date = models.DateField(null=True, blank=True) ###----For AFFILATED

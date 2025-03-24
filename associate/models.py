@@ -17,11 +17,21 @@ class Associate(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
     is_partnership = models.BooleanField(default=False)
+    
+#########################------------------Contract Types----------------#######
+class ContractTypes(models.Model):
+    contract_type = models.CharField(max_length=100, choices=[
+        ('Type 1', 'Type 1'),
+        ('Type 2', 'Type 2'),
+        ('Type3', 'Type3'),
+        ('All', 'All'),
+    ], default='Type1')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 ################-------------------Customer Associate Booking Slots-------------------------############
 class BookingSlots(models.Model):
     slot = models.CharField(max_length=200, choices=slot_choices)
-    day_weeks=models.CharField(max_length=200, choices=day_choices,default="Monday")
     created_at = models.DateField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted=models.BooleanField(default=False)
@@ -33,8 +43,7 @@ class AddAssoicateBookingSlots(models.Model):
     created_at = models.DateField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted=models.BooleanField(default=False)
-    
-    
+
 ########################-------------------Book KYC Slot with Employee-----------------##########
 class BookkycEmployee(models.Model):
     employee=models.ForeignKey('gigworkers.GigEmployee',on_delete=models.CASCADE, null=True, blank=True)

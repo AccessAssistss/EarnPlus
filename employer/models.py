@@ -30,6 +30,7 @@ class DistrictMaster(models.Model):
 #------------------------------EMPLOYERR MODELS
 class Employeer(models.Model):
     user=models.ForeignKey(CustomUser,on_delete=models.CASCADE,null=True,blank=True)
+    associate=models.ForeignKey('associate.Associate',on_delete=models.CASCADE,null=True,blank=True)
     name = models.CharField(max_length=100,null=True, blank=True)
     company_profile=models.FileField(upload_to='employer/profile',null=True, blank=True)
     email = models.EmailField(max_length=100, null=True, blank=True)
@@ -87,7 +88,21 @@ class EmployerCompanyPolicies(models.Model):
     class Meta:
         verbose_name = "Company Policy"
         verbose_name_plural = "Company Policies"
-
+        
+##########################--------------------Employerr Type of Contract----------------####
+class EmployerrTypeContract(models.Model):
+    employer=models.ForeignKey(Employeer,on_delete=models.CASCADE,null=True,blank=True)
+    contract_under=models.ManyToManyField('associate.ContractTypes',blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_deleted = models.BooleanField(default=False)
+##########################--------------------Employere Pyemnet cycle
+class EmployerPaymentCycle(models.Model):
+    employer=models.ForeignKey(Employeer,on_delete=models.CASCADE,null=True,blank=True)
+    contract_type=models.ManyToManyField(EmployerrTypeContract,blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_deleted = models.BooleanField(default=False)
 ########################----------------------Employer Emails Details
 class EmployerEmailsDetails(models.Model):
     employer = models.ForeignKey(Employeer, on_delete=models.CASCADE,null=True,blank=True)
@@ -103,13 +118,13 @@ class EmployerEmailsDetails(models.Model):
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
-
 ############################---------------------------Employer Work Location------------
 class EmployerWorkLocation(models.Model):
     employer = models.ForeignKey(Employeer, on_delete=models.CASCADE,null=True, blank=True)
     country=models.ForeignKey(CountriesSelector, on_delete=models.CASCADE,null=True,blank=True)
     state=models.ForeignKey(StateMaster, on_delete=models.CASCADE,null=True,blank=True)
     district=models.ForeignKey(DistrictMaster, on_delete=models.CASCADE,null=True,blank=True)
+    work_location_name=models.CharField(max_length=100,null=True,blank=True)
     total_employees=models.IntegerField(default=0)
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
