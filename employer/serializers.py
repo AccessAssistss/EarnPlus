@@ -59,7 +59,7 @@ class AddEmployeeSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'employee_name', 'employee_id', 'email', 'mobile', 
             'designation', 'dob', 'department', 'date_joined', 'employment_type', 
-            'payment_cycle', 'address'
+            'payment_cycle', 'address','gender','marital_status'
         ]
 
     def validate(self, data):

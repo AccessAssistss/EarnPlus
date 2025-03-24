@@ -1,6 +1,7 @@
 from django.db import models
 from gigworkers.managers import *
 from gigworkers.models import *
+from associate.models import *
 from datetime import timedelta
 from django.utils import timezone
 #################------------------------------Country Selectors----------------------- #################

@@ -38,7 +38,7 @@ class GigEmployee(models.Model):
     gender= models.CharField(max_length=100, choices=[
         ('Male', 'Male'),
         ('Female', 'Female'),
-        ('Unknown', 'Unknown'),
+        ('Others', 'Others'),
     ], null=True,blank=True)
     fcm_token=models.CharField(null=True, blank=True, max_length=100)
     dob = models.DateField(null=True, blank=True) 

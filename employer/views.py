@@ -513,7 +513,7 @@ class BulkEmployeeAdd(APIView):
             employer = get_object_or_404(Employeer, user=user)
 
             df = pd.read_excel(file, engine='openpyxl')
-            required_columns = ['employee_name', 'employee_id', 'email', 'mobile', 'designation', 'dob', 'department', 'date_joined', 'employment_type', 'payment_cycle', 'address']
+            required_columns = ['employee_name', 'employee_id', 'email', 'mobile', 'designation', 'dob', 'department', 'date_joined', 'employment_type', 'payment_cycle', 'address','gender','marital_status']
 
             if not all(column in df.columns for column in required_columns):
                 return Response({'error': 'File does not contain required columns'}, status=status.HTTP_400_BAD_REQUEST)
