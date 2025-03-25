@@ -52,12 +52,17 @@ class EmployeeVerificationSerializer(serializers.ModelSerializer):
 ################------------------Slots by Associates-------------###########
 class AssociatesSlotSerializer(serializers.ModelSerializer):
     slot = serializers.SerializerMethodField()
+    slot_status=serializers.SerializerMethodField()
     class Meta:
         model = AddAssoicateBookingSlots
-        fields = ["id", "slot"]
+        fields = ["id", "slot","slot_status"]
 
     def get_slot(self, obj):
         return obj.slot.slot if obj.slot else None
+    def get_slot_status(self,obj):
+        date = self.context.get('date')
+        data=BookkycEmployee.objects.filter(slot=obj,is_deleted=False,slot_date=date).exists()
+        return data
 
 ###########################-----------------Salary Histories
 class SalaryHistorySerializer(serializers.ModelSerializer):

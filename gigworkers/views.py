@@ -381,10 +381,13 @@ class GetBookKYCSlotByEmployeee(APIView):
             return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
         if user.user_type!="gigaff":
             return Response({'error': 'User type is not Gig'}, status=status.HTTP_400_BAD_REQUEST)
+        date=request.query_params.get('date')
+        if not date:
+            return Response({'error': 'Date is required'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             employee=get_object_or_404(GigEmployee,user=user)
             slots=AddAssoicateBookingSlots.objects.filter(is_deleted=False)
-            serializer=AssociatesSlotSerializer(slots,many=True)
+            serializer=AssociatesSlotSerializer(slots,many=True,context={'date':date})
             return Response({'status':'success','data':serializer.data}, status=status.HTTP_200_OK)
         except Exception as e:
             return handle_exception(e,"An error occurred while fetching slots")
@@ -401,11 +404,13 @@ class GetBookKYCSlotByEmployeee(APIView):
             return Response({'error': 'Slot & Date is required'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             employee=get_object_or_404(GigEmployee,user=user)
+            slot=get_object_or_404(AddAssoicateBookingSlots,id=slot)
             active_booking=BookkycEmployee.objects.filter(employee=employee).exists()
             if active_booking:
                 return Response({'error': 'You already has an active booking'}, status=status.HTTP_400_BAD_REQUEST)
             with transaction.atomic():
-                booking=BookkycEmployee(employee=employee,slot=slot,date=date)
+                booking=BookkycEmployee(employee=employee,slot=slot,associate=slot.associate)
+                print(f"Booking Is :{booking}")
                 booking.save()
             return Response({'status':'success','message':'Slot Booked Successfully','booking_id':booking.id}, status=status.HTTP_200_OK)
         except Exception as e:

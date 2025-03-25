@@ -55,7 +55,8 @@ class BookkycEmployee(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted=models.BooleanField(default=False)
     
-    def save(self,*args, **kwargs):
+    def save(self, *args, **kwargs):
         if self.slot and self.slot_date and not self.meet_link:
-            slot_time=self.slot.slot.slot.split(' - ')[0]
-            slot__24hr=datetime.strptime(slot_time,"%I:%M %p").strftime("%H:%M")
+            slot_time = self.slot.slot.slot.split(' - ')[0].replace(".", "").upper()
+            slot__24hr = datetime.strptime(slot_time, "%I:%M %p").strftime("%H:%M")
+        super(BookkycEmployee, self).save(*args, **kwargs)
