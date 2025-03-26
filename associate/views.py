@@ -139,7 +139,7 @@ class AddEmployerByAssociate(APIView):
         except Exception as e:
             return handle_exception(e,"An error occurred while fetching employer details")
     
-    def delete(self,request,format=None):
+    def delete(self, request, format=None):
         user = request.user
         print(f"User is {user.user_type}")
         provided_access_token = request.META.get('HTTP_AUTHORIZATION', '').split(' ')[-1]
@@ -148,16 +148,23 @@ class AddEmployerByAssociate(APIView):
             return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
         if user.user_type != "associate":
             return Response({'error': 'Invalid user type'}, status=status.HTTP_400_BAD_REQUEST)
-        employer=request.data.get('employer_id',[])
-        if not employer:
+
+        employer_ids = request.data.get('employer_id', [])
+        if not employer_ids:
             return Response({'error': 'No employer provided'}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            associate=get_object_or_404(Associate,user=user)
-            employer=get_object_or_404(Employeer,id__in=employer,associate=associate)
-            employer.delete()
-            use=employer.user
-            use.delete()
-            return Response({'status':'success','message': 'Employer deleted successfully'}, status=status.HTTP_200_OK)
+            associate = get_object_or_404(Associate, user=user)
+            employers = Employeer.objects.filter(id__in=employer_ids, associate=associate)
+            if not employers.exists():
+                return Response({'error': 'No matching employer(s) found'}, status=status.HTTP_404_NOT_FOUND)
+
+            users_to_delete = [employer.user for employer in employers if hasattr(employer, 'user')]
+            employers.delete()
+            for use in users_to_delete:
+                use.delete()
+            return Response({'status': 'success', 'message': 'Employer(s) deleted successfully'}, status=status.HTTP_200_OK)
+        
         except Exception as e:
             return handle_exception(e, "An error occurred while deleting employer")
     
