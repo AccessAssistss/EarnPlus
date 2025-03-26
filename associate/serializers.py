@@ -5,6 +5,7 @@ from gigworkers.managers import CustomUser
 from rest_framework.response import Response
 from .models import *
 from gigworkers.models import *
+from django.contrib.auth.hashers import make_password
 from employer.serializers import AddEmployeeSerializer
 ################-------------------------Employeer Registration
 class AssociateRegistrationSerializer(serializers.Serializer):
@@ -49,34 +50,26 @@ class AssociateRegistrationSerializer(serializers.Serializer):
 class AssociateEmployerRegistrationSerializer(serializers.Serializer):
     mobile = serializers.CharField()
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
-    user_type = serializers.ChoiceField(choices=['employer'])
     name = serializers.CharField(required=False)
     
 
     def create(self, validated_data):
-        user_type = validated_data['user_type']
         name = validated_data.pop('name', None)
         request = self.context.get('request') 
+        user_type="employer"
+        default_password = make_password("Admin@1234")
         associate = Associate.objects.filter(user=request.user).first()
         user = CustomUser.objects.create_user(
             mobile=validated_data['mobile'],
-            password=validated_data['password'],
+            password=default_password,
             user_type=user_type,
             name=name,
             email=validated_data['email']
         )
-        if user_type == 'employer':
-            if not name:
-                raise serializers.ValidationError({"name": "Name is required for employerr users."})
-            Employeer.objects.create(user=user, mobile=user.mobile,name=name,password=user.password,
-                                    email=user.email,associate=associate)
-        else:
-            user.delete()  
-            raise serializers.ValidationError({"user_type": "Invalid user type."})
+        Employeer.objects.create(user=user, mobile=user.mobile,name=name,password=user.password,
+                                email=user.email,associate=associate)
         
         
-
         print(f"Created {user_type} user: {user}")
         return user
 
@@ -95,7 +88,11 @@ class AssociateLoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
     user_type = serializers.ChoiceField(choices=['associate'])
     
-    
+#############----------------Booking Slots
+class BookSlotsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BookingSlots
+        fields = "__all__"
 #######################-----------------------EmployerAssociated------------------#############
 class AssociatedEmployers(serializers.ModelSerializer):
     class Meta:

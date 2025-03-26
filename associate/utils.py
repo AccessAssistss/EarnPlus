@@ -62,3 +62,22 @@ def create_zoom_meeting(slot_date, slot_time):
         return meeting_data['join_url']
     else:
         return None
+    
+##############################-----------------------------EMail Invite Messages---------------------################
+def generate_registration_email(user):
+   
+    return f"""
+    Dear {user.name or 'User'},
+    
+    Welcome to Earn+!
+    
+    Your account has been created successfully. Below are your login credentials:
+    
+    ✅ Email: {user.email}
+    🔒 Password: Admin@1234
+    
+    You can now log in using these credentials. Please change your password after logging in for better security.
+    
+    Best regards,
+    Earn+ Team
+    """

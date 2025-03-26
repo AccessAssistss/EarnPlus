@@ -101,10 +101,9 @@ class AddEmployerByAssociate(APIView):
         user_type = request.data.get('user_type')
         mobile = request.data.get('mobile')
         email = request.data.get('email')
-        password = request.data.get('password')
         name = request.data.get('name')
         ip_address = request.META.get('REMOTE_ADDR')
-        print(f"Registration attempt with mobile: {mobile}, user_type: {user_type}, password: {password}, IP address: {ip_address}")
+        print(f"Registration attempt with mobile: {mobile}, user_type: {user_type}, IP address: {ip_address}")
         try:
             associate=get_object_or_404(Associate,user=user)
             user = CustomUser.objects.filter(
@@ -116,6 +115,8 @@ class AddEmployerByAssociate(APIView):
             serializer = AssociateEmployerRegistrationSerializer(data=request.data,context={'request': request})
             if serializer.is_valid():
                 user = serializer.save()
+                email_message = generate_registration_email(user)
+                send_email("Welcome to Earn+", email_message,email)
                 return Response({'status':'success','message': 'User registered successfully'}, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
@@ -176,10 +177,31 @@ class HomeScreenAPI(APIView):
             return Response({"status":"success","active_employers": active_employer,"inactive_employers": inactive_employer}, status=status.HTTP_200_OK)
         except Exception as e:
             return handle_exception(e, "An error occurred while fetching employer details")
+###################----------------Get All Slots By Admin-------------#####
+class GetallSlots(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    def get(self, request, format=None):
+        user = request.user
+        if user.user_type!= "associate":
+            return Response({'error': 'Only Admin can view slots'}, status=status.HTTP_403_FORBIDDEN)
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION', '').split(' ')[-1]
+        if user.access_token!= provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            associate=get_object_or_404(Associate,user=user)
+            slots=BookingSlots.objects.all()
+            data=BookSlotsSerializer(slots,many=True)
+            return Response({'status':'success','data': data.data})
+        except Exception as e:
+            return handle_exception(e, "An error occurred while fetching slots")
+            
+        
         
         
 ###################-----------------------------Add KYC Slots By Associates----------------##########
 class AddSlotbyAssociate(APIView):
+    
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def post(self, request, format=None):
