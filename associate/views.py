@@ -148,13 +148,15 @@ class AddEmployerByAssociate(APIView):
             return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
         if user.user_type != "associate":
             return Response({'error': 'Invalid user type'}, status=status.HTTP_400_BAD_REQUEST)
-        employer=request.data.get('employer_id')
+        employer=request.data.get('employer_id',[])
         if not employer:
             return Response({'error': 'No employer provided'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             associate=get_object_or_404(Associate,user=user)
-            employer=get_object_or_404(Employeer,id=employer,associate=associate)
+            employer=get_object_or_404(Employeer,id__in=employer,associate=associate)
             employer.delete()
+            use=employer.user
+            use.delete()
             return Response({'status':'success','message': 'Employer deleted successfully'}, status=status.HTTP_200_OK)
         except Exception as e:
             return handle_exception(e, "An error occurred while deleting employer")
