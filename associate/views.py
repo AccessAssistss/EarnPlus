@@ -17,6 +17,7 @@ from django.shortcuts import get_object_or_404
 from gigworkers.models import *
 from .models import *
 from .serializers import *
+from employer.serializers import *
 from employer.models import *
 from django.db.models import Q
 import pandas as pd
@@ -84,7 +85,79 @@ class AssociateLogin(APIView):
         except Exception as e:
             return handle_exception(e,"An error occured while LOgin")
         
+######################----------------------Add Employer By Assocaite----------------###########
+class AddEmployerByAssociate(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    def post(self, request, format=None):
+        user = request.user
+        print(f"User is {user.user_type}")
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION', '').split(' ')[-1]
+        print(f"Access token is {provided_access_token}")
+        if user.access_token != provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type != "associate":
+            return Response({'error': 'Invalid user type'}, status=status.HTTP_400_BAD_REQUEST)
+        user_type = request.data.get('user_type')
+        mobile = request.data.get('mobile')
+        email = request.data.get('email')
+        password = request.data.get('password')
+        name = request.data.get('name')
+        ip_address = request.META.get('REMOTE_ADDR')
+        print(f"Registration attempt with mobile: {mobile}, user_type: {user_type}, password: {password}, IP address: {ip_address}")
+        try:
+            associate=get_object_or_404(Associate,user=user)
+            user = CustomUser.objects.filter(
+            Q(email=email, user_type=user_type) | Q(mobile=mobile, user_type=user_type)
+            ).exists()
+            print(f"User is :{user}")
+            if user:
+                return Response({'error': 'User with this mobile number or Email already exists'}, status=status.HTTP_400_BAD_REQUEST)
+            serializer = AssociateEmployerRegistrationSerializer(data=request.data,context={'request': request})
+            if serializer.is_valid():
+                user = serializer.save()
+                return Response({'status':'success','message': 'User registered successfully'}, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return handle_exception(e,"An error occured while registration")
         
+    def get(self,request,format=None):
+        user = request.user
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION', '').split(' ')[-1]
+        if user.access_token!= provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type!= "associate":
+            return Response({'error': 'Invalid user type'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            associate=get_object_or_404(Associate,user=user)
+            paginator=CurrentNewsPagination()
+            employers = Employeer.objects.filter(associate=associate)
+            paginated_transactions=paginator.paginate_queryset(employers ,request)
+            serializer = AssociatedEmployers(paginated_transactions, many=True)
+            return paginator.get_paginated_response({'status':'success','data': serializer.data})
+        except Exception as e:
+            return handle_exception(e,"An error occurred while fetching employer details")
+    
+    def delete(self,request,format=None):
+        user = request.user
+        print(f"User is {user.user_type}")
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION', '').split(' ')[-1]
+        print(f"Access token is {provided_access_token}")
+        if user.access_token != provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type != "associate":
+            return Response({'error': 'Invalid user type'}, status=status.HTTP_400_BAD_REQUEST)
+        employer=request.data.get('employer_id')
+        if not employer:
+            return Response({'error': 'No employer provided'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            associate=get_object_or_404(Associate,user=user)
+            employer=get_object_or_404(Employeer,id=employer,associate=associate)
+            employer.delete()
+            return Response({'status':'success','message': 'Employer deleted successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return handle_exception(e, "An error occurred while deleting employer")
+    
 ###################-------------------Get Total Employers----------------------###########
 class HomeScreenAPI(APIView):
     authentication_classes = [JWTAuthentication]
@@ -157,4 +230,45 @@ class AddSlotbyAssociate(APIView):
         except Exception as e:
             return handle_exception(e, "An error occurred while Delketing Slots.") 
             
+            
+#################------------------------Get KYC Boookings--------------######################
+class GetEKYCBookings(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    def get(self, request, format=None):
+        user = request.user
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION', '').split(' ')[-1]
+        if user.access_token!= provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type!= "associate":
+            return Response({'error': 'Only Associate can view KYC bookings'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            associate=get_object_or_404(Associate,user=user)
+            paginator=CurrentNewsPagination()
+            bookings=BookkycEmployee.objects.filter(associate=associate).order_by('-created_at')
+            paginated_transactions=paginator.paginate_queryset(bookings ,request)
+            serializer=BookKycSerializer(paginated_transactions,many=True)
+            return paginator.get_paginated_response({'status':'success','data': serializer.data})
+        except Exception as e:
+            return handle_exception(e, "An error occurred while fetching bookings")
+        
+    def put(self,request,format=None):
+        user = request.user
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION', '').split(' ')[-1]
+        if user.access_token!= provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type!= "associate":
+            return Response({'error': 'Only Associate can view KYC bookings'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            associate=get_object_or_404(Associate,user=user)
+            booking_id=request.data.get('booking_id')
+            if not booking_id:
+                return Response({'error': 'Booking ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+            booking=get_object_or_404(BookkycEmployee,id=booking_id,associate=associate)
+            serializer=BookKycSerializer(booking)
+            return Response({'status':'success','data': serializer.data})
+        except Exception as e:
+            return handle_exception(e, "An error occurred while Updating booking details")
+        
+        
             

@@ -393,6 +393,7 @@ class GetBookKYCSlotByEmployeee(APIView):
             return handle_exception(e,"An error occurred while fetching slots")
     def post(self,request,format=None):
         user = request.user
+        print(f"User: {request.user}")
         provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
         if user.access_token != provided_access_token:
             return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -404,14 +405,14 @@ class GetBookKYCSlotByEmployeee(APIView):
             return Response({'error': 'Slot & Date is required'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             employee=get_object_or_404(GigEmployee,user=user)
+            print(f"Employee is :{employee}")
             slot=get_object_or_404(AddAssoicateBookingSlots,id=slot)
-            active_booking=BookkycEmployee.objects.filter(employee=employee).exists()
+            active_booking=BookkycEmployee.objects.filter(employee=employee,associate=slot.associate,slot_date=date).exists()
             if active_booking:
                 return Response({'error': 'You already has an active booking'}, status=status.HTTP_400_BAD_REQUEST)
-            with transaction.atomic():
-                booking=BookkycEmployee(employee=employee,slot=slot,associate=slot.associate)
-                print(f"Booking Is :{booking}")
-                booking.save()
+            booking=BookkycEmployee(employee=employee,slot=slot,associate=slot.associate,slot_date=date)
+            print(f"Booking Is :{booking}")
+            booking.save()
             return Response({'status':'success','message':'Slot Booked Successfully','booking_id':booking.id}, status=status.HTTP_200_OK)
         except Exception as e:
             return handle_exception(e,"An error occurred while Booking Slots")

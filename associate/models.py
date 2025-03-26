@@ -2,7 +2,7 @@ from django.db import models
 from gigworkers.managers import *
 from .choices import *
 from gigworkers.models import *
-
+from .utils import *
 from datetime import datetime
 
 #################-----------------------Customer Associate-------------------####################
@@ -53,10 +53,19 @@ class BookkycEmployee(models.Model):
     created_at = models.DateField(auto_now_add=True)
     meet_link=models.URLField(blank=True,null=True)
     updated_at = models.DateTimeField(auto_now=True)
+    status = models.CharField(max_length=100, choices=[
+        ('Pending', 'Pending'),
+        ('In Process', 'In Process'),
+        ('Completed', 'Completed'),
+    ], default='Pending')
     is_deleted=models.BooleanField(default=False)
     
     def save(self, *args, **kwargs):
         if self.slot and self.slot_date and not self.meet_link:
             slot_time = self.slot.slot.slot.split(' - ')[0].replace(".", "").upper()
-            slot__24hr = datetime.strptime(slot_time, "%I:%M %p").strftime("%H:%M")
+            slot_time_24h = datetime.strptime(slot_time, "%I:%M %p").strftime("%H:%M")
+            zoom_link = create_zoom_meeting(self.slot_date, slot_time_24h)
+            print(f"Zoom Link is :{zoom_link}")
+            if zoom_link:
+                self.meet_link = zoom_link
         super(BookkycEmployee, self).save(*args, **kwargs)
