@@ -53,11 +53,6 @@ class BookkycEmployee(models.Model):
     created_at = models.DateField(auto_now_add=True)
     meet_link=models.URLField(blank=True,null=True)
     updated_at = models.DateTimeField(auto_now=True)
-    status = models.CharField(max_length=100, choices=[
-        ('Pending', 'Pending'),
-        ('In Process', 'In Process'),
-        ('Completed', 'Completed'),
-    ], default='Pending')
     is_deleted=models.BooleanField(default=False)
     
     def save(self, *args, **kwargs):
