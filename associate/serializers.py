@@ -91,9 +91,12 @@ class AssociateLoginSerializer(serializers.Serializer):
 ####################------------------Associate Slots
 #############----------------Booking Slots
 class AssociateSlotsSerializer(serializers.ModelSerializer):
+    slot=serializers.SerializerMethodField()
     class Meta:
         model = AddAssoicateBookingSlots
-        fields = "__all__"
+        fields = ['id','slot']
+    def get_slot(self, obj):
+        return obj.slot.slot if obj.slot else None
 #############----------------Booking Slots
 class BookSlotsSerializer(serializers.ModelSerializer):
     class Meta:
