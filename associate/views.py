@@ -241,6 +241,23 @@ class AddSlotbyAssociate(APIView):
         except Exception as e:
             return handle_exception(e, "An error occurred while adding slots")
     
+    def get(self,request,format=None):
+        user = request.user
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION', '').split(' ')[-1]
+        if user.access_token!= provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type!= "associate":
+            return Response({'error': 'Only Associate can view KYC slots'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            associate=get_object_or_404(Associate,user=user)
+            paginator=CurrentNewsPagination()
+            slots=AddAssoicateBookingSlots.objects.filter(associate=associate)
+            paginated_transactions=paginator.paginate_queryset(slots ,request)
+            serializer=AssociateSlotsSerializer(paginated_transactions,many=True)
+            return paginator.get_paginated_response({'status':'success','data': serializer.data})
+        except Exception as e:
+            return handle_exception(e, "An error occurred while fetching slots")
+    
     def delete(self,request,format=None):
         user = request.user
         print(f"User is {user.user_type}")

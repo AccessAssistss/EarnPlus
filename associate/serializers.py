@@ -88,6 +88,12 @@ class AssociateLoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
     user_type = serializers.ChoiceField(choices=['associate'])
     
+####################------------------Associate Slots
+#############----------------Booking Slots
+class AssociateSlotsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AddAssoicateBookingSlots
+        fields = "__all__"
 #############----------------Booking Slots
 class BookSlotsSerializer(serializers.ModelSerializer):
     class Meta:
