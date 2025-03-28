@@ -46,7 +46,7 @@ class Employeer(models.Model):
 
 #######################--------------------Employer Busienss Details
 class EmployerBusinessDetails(models.Model):
-    employer = models.ForeignKey(Employeer, on_delete=models.CASCADE,null=True,blank=True)
+    employer = models.ForeignKey(Employeer, on_delete=models.CASCADE,null=True,blank=True,related_name="business_details")
     business_location=models.CharField(max_length=128)
     business_type = models.CharField(max_length=100, choices=[
         ('Manufacturing', 'Manufacturing'),
@@ -57,12 +57,13 @@ class EmployerBusinessDetails(models.Model):
     ], default='Other')
     business_description = models.TextField(null=True, blank=True)
     established_date = models.DateField(null=True, blank=True)
-    registration_number = models.CharField(max_length=100, unique=True, null=True, blank=True)  
-    gst_number = models.CharField(max_length=20, unique=True, null=True, blank=True) 
+    registration_number = models.CharField(max_length=100, null=True, blank=True)  
+    gst_number = models.CharField(max_length=20, null=True, blank=True) 
     country=models.ForeignKey(CountriesSelector, on_delete=models.CASCADE,null=True,blank=True)
     state=models.ForeignKey(StateMaster, on_delete=models.CASCADE,null=True,blank=True)
     district=models.ForeignKey(DistrictMaster, on_delete=models.CASCADE,null=True,blank=True)
     pincode = models.CharField(max_length=6, null=True, blank=True)
+    total_employees = models.IntegerField(default=0)
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
@@ -83,8 +84,6 @@ class EmployerCompanyPolicies(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return f"{self.employer.company_name} - Company Policies"
 
     class Meta:
         verbose_name = "Company Policy"
@@ -92,21 +91,22 @@ class EmployerCompanyPolicies(models.Model):
         
 ##########################--------------------Employerr Type of Contract----------------####
 class EmployerrTypeContract(models.Model):
-    employer=models.ForeignKey(Employeer,on_delete=models.CASCADE,null=True,blank=True)
-    contract_under=models.ManyToManyField('associate.ContractTypes',blank=True)
+    employer=models.ForeignKey(Employeer,on_delete=models.CASCADE,null=True,blank=True,related_name="contract_types")
+    contract_under=models.ForeignKey('associate.ContractTypes',on_delete=models.CASCADE,null=True,blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
 ##########################--------------------Employere Pyemnet cycle
 class EmployerPaymentCycle(models.Model):
-    employer=models.ForeignKey(Employeer,on_delete=models.CASCADE,null=True,blank=True)
-    contract_type=models.ManyToManyField(EmployerrTypeContract,blank=True)
+    employer=models.ForeignKey(Employeer,on_delete=models.CASCADE,null=True,blank=True,related_name='payment_cycle')
+    contract_type=models.ForeignKey(EmployerrTypeContract,on_delete=models.CASCADE,null=True,blank=True)
+    payment_cycle=models.IntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
 ########################----------------------Employer Emails Details
 class EmployerEmailsDetails(models.Model):
-    employer = models.ForeignKey(Employeer, on_delete=models.CASCADE,null=True,blank=True)
+    employer = models.ForeignKey(Employeer, on_delete=models.CASCADE,null=True,blank=True,related_name="email_details")
     EMAIL_TYPE_CHOICES = [
         ('HR', 'HR Email'),
         ('Communication', 'Communication Email'),
@@ -121,7 +121,7 @@ class EmployerEmailsDetails(models.Model):
     is_deleted = models.BooleanField(default=False)
 ############################---------------------------Employer Work Location------------
 class EmployerWorkLocation(models.Model):
-    employer = models.ForeignKey(Employeer, on_delete=models.CASCADE,null=True, blank=True)
+    employer = models.ForeignKey(Employeer, on_delete=models.CASCADE,null=True, blank=True,related_name="work_location")
     country=models.ForeignKey(CountriesSelector, on_delete=models.CASCADE,null=True,blank=True)
     state=models.ForeignKey(StateMaster, on_delete=models.CASCADE,null=True,blank=True)
     district=models.ForeignKey(DistrictMaster, on_delete=models.CASCADE,null=True,blank=True)

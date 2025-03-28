@@ -2,6 +2,7 @@ from django.shortcuts import render
 from gigworkers.utils import *
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -18,6 +19,7 @@ from gigworkers.models import *
 from .models import *
 from .serializers import *
 from .utils import *
+from associate.models import *
 from django.db.models import Q
 import pandas as pd
 import csv
@@ -241,6 +243,7 @@ class PasswordResetAPIView(APIView):
 class UserProfileView(APIView):
   authentication_classes = [JWTAuthentication]
   permission_classes = [IsAuthenticated]
+  throttle_classes = [UserRateThrottle]
   def get(self, request, format=None):
         user = request.user
         print(f"User is {user.user_type}")
@@ -252,7 +255,7 @@ class UserProfileView(APIView):
             return Response({'error': 'User type is not Vednor'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             employer=get_object_or_404(Employeer,user=user)
-            serializer = EmployerDetailsSerializer(employer)
+            serializer = EmployerFinalViewSerializer(employer)
             return Response({'status': 'success','data':serializer.data}, status=status.HTTP_200_OK)
         except Exception as e:
             return handle_exception(e,"An error occured while fetching user profile")
@@ -281,46 +284,35 @@ class UserProfileView(APIView):
 class UpdateEmployeeDetailsView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
+
     def put(self, request, format=None):
         user = request.user
-        print(f"User is {user.user_type}")
-        
-        #----------Validate access token
         provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
-        print(f"Access token is {provided_access_token}")
-        if user.access_token != provided_access_token:
-            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
         
-        #------------Check if user is an employer
+        if user.access_token != provided_access_token:
+            return Response(
+                {'error': 'Access token is invalid or has been replaced.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
         if user.user_type != "employer":
             return Response({'error': 'User type is not Employer'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         try:
             employer = get_object_or_404(Employeer, user=user)
             response_data = {}
-            #-------------Update business details if provided
-            if any(field in request.data for field in [
-                'business_location', 'business_type', 'business_description', 
+
+            # ------------------------- Update business details if provided
+            business_fields = [
+                'business_location', 'business_type', 'business_description','total_employees',
                 'established_date', 'registration_number', 'gst_number',
-                'country', 'state', 'district', 'pincode'
-            ]):
-                business_data = {key: request.data[key] for key in request.data if key in [
-                    'business_location', 'business_type', 'business_description', 
-                    'established_date', 'registration_number', 'gst_number',
-                    'country', 'state', 'district', 'pincode'
-                ]}
-                
-                try:
-                    business_details = EmployerBusinessDetails.objects.get(employer=employer)
-                    serializer = EmployerBusinessDetailsSerializer(
-                        business_details, 
-                        data=business_data, 
-                        partial=True
-                    )
-                except EmployerBusinessDetails.DoesNotExist:
-                    serializer = EmployerBusinessDetailsSerializer(
-                        data={**business_data, 'employer': employer.id}
-                    )
+                'pincode', 'country_id', 'state_id', 'district_id'
+            ]
+            business_data = {key: request.data[key] for key in request.data if key in business_fields}
+
+            if business_data:
+                business_details, created = EmployerBusinessDetails.objects.get_or_create(employer=employer)
+                serializer = EmployerBusinessesDetailsSerializer(business_details, data=business_data, partial=True)
                 if serializer.is_valid():
                     business_details = serializer.save()
                     response_data['business_details'] = serializer.data
@@ -329,31 +321,18 @@ class UpdateEmployeeDetailsView(APIView):
                         {'error': 'Invalid business details data', 'details': serializer.errors},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-            
-            #-------------Update company policies if provided
-            if any(field in request.data for field in [
+
+            # ------------------------- Update company policies if provided
+            policy_fields = [
                 'notice_period_days', 'probation_period_days', 'total_annual_leaves',
                 'sick_leaves', 'casual_leaves', 'maternity_leaves', 'working_hours_per_day',
                 'overtime_policy', 'resignation_policy', 'remote_work_policy', 'other_policies'
-            ]):
-                policy_data = {key: request.data[key] for key in request.data if key in [
-                    'notice_period_days', 'probation_period_days', 'total_annual_leaves',
-                    'sick_leaves', 'casual_leaves', 'maternity_leaves', 'working_hours_per_day',
-                    'overtime_policy', 'resignation_policy', 'remote_work_policy', 'other_policies'
-                ]}
-                
-                try:
-                    company_policies = EmployerCompanyPolicies.objects.get(employer=employer)
-                    serializer = EmployerCompanyPoliciesSerializer(
-                        company_policies, 
-                        data=policy_data, 
-                        partial=True
-                    )
-                except EmployerCompanyPolicies.DoesNotExist:
-                    serializer = EmployerCompanyPoliciesSerializer(
-                        data={**policy_data, 'employer': employer.id}
-                    )
-                
+            ]
+            policy_data = {key: request.data[key] for key in request.data if key in policy_fields}
+
+            if policy_data:
+                company_policies, created = EmployerCompanyPolicies.objects.get_or_create(employer=employer)
+                serializer = EmployerCompanyPoliciesSerializer(company_policies, data=policy_data, partial=True)
                 if serializer.is_valid():
                     company_policies = serializer.save()
                     response_data['company_policies'] = serializer.data
@@ -362,47 +341,229 @@ class UpdateEmployeeDetailsView(APIView):
                         {'error': 'Invalid company policies data', 'details': serializer.errors},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-            if any(field in request.data for field in [
-                'email','email_type'
-            ]):
-                email_data = {key: request.data[key] for key in request.data if key in [
-                     'email','email_type'
-                ]}
-                try:
-                    company_email = EmployerEmailsDetails.objects.get(employer=employer)
-                    serializer = EmployerEmailDetailsSerializer(
-                        company_email, 
-                        data=policy_data, 
-                        partial=True
-                    )
-                except EmployerEmailsDetails.DoesNotExist:
-                    serializer = EmployerEmailDetailsSerializer(
-                        data={**email_data, 'employer': employer.id}
-                    )
-                
-                if serializer.is_valid():
-                    email_data  = serializer.save()
-                    response_data['email_data '] = serializer.data
-                else:
-                    return Response(
-                        {'error': 'Invalid company policies data', 'details': serializer.errors},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-            
+
+           
+            # ------------------------- No valid data provided
             if not response_data:
                 return Response(
                     {'error': 'No valid data provided for update'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             return Response(
                 {'message': 'Employer details updated successfully', 'data': response_data},
                 status=status.HTTP_200_OK
             )
-            
+
         except Exception as e:
-            return handle_exception(e,"An error occurred while updating")
-    
+            return Response(
+                {'error': 'An error occurred while updating data', 'details': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
+#####################-----------------------Addd Email & Work Locations--------------------#####
+class AddEmailContractWorkLocation(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    def post(self, request, format=None):
+        user = request.user
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        if user.access_token != provided_access_token:
+            return Response(
+                {"error": "Access token is invalid or has been replaced."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        if user.user_type != "employer":
+            return Response(
+                {"error": "User type is not Employer"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        filter_type=request.data.get("filter_type")
+        if not filter_type:
+            return Response({"error": "Filter type must be provided."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            employer=get_object_or_404(Employeer,user=user)
+            if filter_type=="email":
+                email=request.data.get('email')
+                email_type=request.data.get('email_type')
+                if not email or not email_type:
+                    return Response({"error": "Email and Email Type must be provided."}, status=status.HTTP_400_BAD_REQUEST)
+                existing_data=EmployerEmailsDetails.objects.filter(email=email,employer=employer,email_type=email_type).exists()
+                if existing_data:
+                    return Response({"error": "Email already exists for selected type."}, status=status.HTTP_400_BAD_REQUEST)
+                EmployerEmailsDetails.objects.create(employer=employer,email=email,email_type=email_type)
+                return Response({"status":"success","message": "Email Data added successfully."}, status=status.HTTP_200_OK)
+            elif filter_type=="payment_cycle":
+                payment_cycle=request.data.get('payment_cycle')
+                contract_type_id=request.data.get('contract_type_id')
+                if not payment_cycle or not contract_type_id:
+                    return Response({"error": "Payment Cycle & Contract Type must be provided."}, status=status.HTTP_400_BAD_REQUEST)
+                existing_data=EmployerPaymentCycle.objects.filter(payment_cycle=payment_cycle,employer=employer,
+                                                                  contract_type_id=contract_type_id).exists()
+                if existing_data:
+                    return Response({"error": "Payment Cycle already exists for selected type."}, status=status.HTTP_400_BAD_REQUEST)
+                EmployerPaymentCycle.objects.create(employer=employer,payment_cycle=payment_cycle,contract_type_id=contract_type_id)
+                return Response({"status":"success","message": "Payment Cycle successfully added."}, status=status.HTTP_200_OK)
+            elif filter_type=="contract":
+                contract_under=request.data.get('contract_under',[])
+                if not contract_under:
+                    return Response({"error": "Contract Under must be provided."}, status=status.HTTP_400_BAD_REQUEST)
+                existing_data=EmployerrTypeContract.objects.filter(
+                    employer=employer,
+                    contract_under__in=contract_under
+                ).exists()
+                if existing_data:
+                    return Response({"error": "Contract already exists for selected types."}, status=status.HTTP_400_BAD_REQUEST)
+                for contract_type_id in contract_under:
+                    EmployerrTypeContract.objects.get_or_create(
+                        employer=employer,
+                        contract_under_id=contract_type_id
+                    )
+                return Response({"status":"success","message": "Contract successfully added."}, status=status.HTTP_200_OK)
+            elif filter_type=="location":
+                state_id=request.data.get('state_id')
+                country_id=request.data.get('country_id')
+                district_id=request.data.get('district_id')
+                work_location_name=request.data.get('work_location_name')
+                total_employees=request.data.get('total_employees')
+                if not state_id or not country_id or not district_id or not work_location_name or not total_employees:
+                    return Response({"error": "State, Country, District, Work Location Name and Total Employees must be provided."}, status=status.HTTP_400_BAD_REQUEST)
+                existing_data=EmployerWorkLocation.objects.filter(
+                    employer=employer,
+                    country_id=country_id,
+                    state_id=state_id,
+                    district_id=district_id,
+                    work_location_name=work_location_name
+                ).exists()
+                if existing_data:
+                    return Response({"error": "Work Location already exists for selected state, country and district."}, status=status.HTTP_400_BAD_REQUEST)
+                EmployerWorkLocation.objects.create(
+                    employer=employer,
+                    country_id=country_id,
+                    state_id=state_id,
+                    district_id=district_id,
+                    work_location_name=work_location_name,
+                    total_employees=total_employees)
+                return Response({"status":"success","message": "Work Location added successfully."}, status=status.HTTP_200_OK)
+                
+        except Exception as e:
+            return handle_exception(e,"An error  occured while posting data")
+    def put(self,request,format=None):
+        user = request.user
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        if user.access_token != provided_access_token:
+            return Response(
+                {"error": "Access token is invalid or has been replaced."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        if user.user_type != "employer":
+            return Response(
+                {"error": "User type is not Employer"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        filter_type=request.data.get("filter_type")
+        if not filter_type:
+            return Response({"error": "Filter type must be provided."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            employer=get_object_or_404(Employeer,user=user)
+            if filter_type=="email":
+                email=request.data.get('email',None)
+                email_type=request.data.get('email_type',)
+                if not email or not email_type:
+                    return Response({"error": "Email and Email Type must be provided."}, status=status.HTTP_400_BAD_REQUEST)
+                data=get_object_or_404(EmployerEmailsDetails,employer=employer)
+                data.email=email
+                data.email_type=email_type
+                data.save()
+                return Response({"status":"success","message": "Email Data Updated successfully."}, status=status.HTTP_200_OK)
+            elif filter_type=="location":
+                state_id=request.data.get('state_id')
+                country_id=request.data.get('country_id')
+                district_id=request.data.get('district_id')
+                work_location_name=request.data.get('work_location_name')
+                total_employees=request.data.get('total_employees')
+                if not state_id or not country_id or not district_id or not work_location_name or not total_employees:
+                    return Response({"error": "State, Country, District, Work Location Name and Total Employees must be provided."}, status=status.HTTP_400_BAD_REQUEST)
+                data=get_object_or_404(EmployerWorkLocation,employer=employer)
+                data.country_id=country_id
+                data.state_id=state_id
+                data.district_id=district_id
+                data.work_location_name=work_location_name
+                data.total_employees=total_employees
+                data.save()
+                return Response({"status":"success","message": "Work Location added successfully."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return handle_exception(e,"An error  occured while posting data")
+    def delete(self,request,format=None):
+        user = request.user
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        if user.access_token != provided_access_token:
+            return Response(
+                {"error": "Access token is invalid or has been replaced."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        if user.user_type != "employer":
+            return Response(
+                {"error": "User type is not Employer"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        filter_type=request.data.get("filter_type")
+        if not filter_type:
+            return Response({"error": "Filter type must be provided."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            employer=get_object_or_404(Employeer,user=user)
+            if filter_type=="email":
+                email_ids=request.data.get("email_ids",[])
+                data=EmployerEmailsDetails.objects.filter(employer=employer,id__in=email_ids)
+                data.delete()
+                return Response({"status":"success","message": "Email Data deleted successfully."}, status=status.HTTP_200_OK)
+            elif filter_type=="location":
+                location_id=request.data.get("location_id",[])
+                if not location_id:
+                    return Response({"error": "Location ID must be provided."}, status=status.HTTP_400_BAD_REQUEST)
+                data=EmployerWorkLocation.objects.filter(id__in=location_id,employer=employer)
+                data.delete()
+                return Response({"status":"success","message": "Work Location deleted successfully."}, status=status.HTTP_200_OK)
+            elif filter_type=="contract":
+                contract_id=request.data.get("contract_id",[])
+                if not contract_id:
+                    return Response({"error": "Contract ID must be provided."}, status=status.HTTP_400_BAD_REQUEST)
+                data=EmployerrTypeContract.objects.filter(employer=employer,id__in=contract_id)
+                data.delete()
+                return Response({"status":"success","message": "Contract deleted successfully."}, status=status.HTTP_200_OK)
+            elif filter_type=="payment_cycle":
+                payment_cycle_id=request.data.get("payment_cycle_id",[])
+                if not payment_cycle_id:
+                    return Response({"error": "Payment Cycle ID must be provided."}, status=status.HTTP_400_BAD_REQUEST)
+                data=EmployerPaymentCycle.objects.filter(employer=employer,id__in=payment_cycle_id)
+                data.delete()
+                return Response({"status":"success","message": "Payment Cycle deleted successfully."}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Invalid filter type provided."}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return handle_exception(e,"An error  occured while deleting data")
+#######################----------------------Add Contract Select by Employer-----------########
+class AddgetContractbyEmployer(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    def get(self,request,format=None):
+        user = request.user
+        print(f"User is {user.user_type}")
+        provided_access_token = request.META.get('HTTP_AUTHORIZATION').split(' ')[1]
+        print(f"Access token is {provided_access_token}")
+        if user.access_token != provided_access_token:
+            return Response({'error': 'Access token is invalid or has been replaced.'}, status=status.HTTP_401_UNAUTHORIZED)
+        if user.user_type!="employer":
+            return Response({'error': 'User type is not Employer'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            employer=get_object_or_404(Employeer,user=user)
+            contracts=ContractTypes.objects.all()
+            data=ContractTypesSerializer(contracts,many=True)
+            return Response({'status':'success','data':data.data}, status=status.HTTP_200_OK) 
+        except Exception as e:
+            return handle_exception(e,"An error occured while fetching contract")
 ###################------------------------------Add Employees By Employeer---------------
 class AddEmployeeByEmployerView(APIView):
     authentication_classes = [JWTAuthentication]

@@ -47,3 +47,13 @@ class EmployerEmailsDetailsAdmin(admin.ModelAdmin):
     list_display = ('employer', 'email', 'email_type', 'is_deleted')
     list_filter = ('email_type', 'is_deleted')
     search_fields = ('employer__name', 'email')
+###########################-----------------------Employer Type Contract
+@admin.register(EmployerrTypeContract)
+class EmployerTypeContractAdmin(admin.ModelAdmin):
+    list_display = ('employer','is_deleted')
+######################-------------EmployerPaymentCycle
+@admin.register(EmployerPaymentCycle)
+class EmployerPaymentCycleAdmin(admin.ModelAdmin):
+    list_display = ('employer','payment_cycle')
+    search_fields = ('employer__name',)
+    list_filter = ('payment_cycle',)

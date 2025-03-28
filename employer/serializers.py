@@ -5,6 +5,7 @@ from gigworkers.managers import CustomUser
 from rest_framework.response import Response
 from .models import *
 from gigworkers.models import *
+from associate.models import *
 ################-------------------------Employeer Registration
 class EmployerRegistrationSerializer(serializers.Serializer):
     mobile = serializers.CharField()
@@ -96,28 +97,83 @@ class EmployerLoginSerializer(serializers.Serializer):
 
 ###################---------------------Employer ADDITIONAL dETAILS
 class EmployerBusinessDetailsSerializer(serializers.ModelSerializer):
+    country = serializers.SerializerMethodField()
+    state = serializers.SerializerMethodField()
+    district = serializers.SerializerMethodField()
+    class Meta:
+        model = EmployerBusinessDetails
+        fields = ['id','state','country', 'district', 'business_location', 'business_type',
+                  'business_description', 'established_date', 'registration_number','total_employees',
+                  'gst_number', 'pincode', 'created_at', 'updated_at']
+    def get_country(self, obj):
+        return obj.country.country if obj.country else None
+    def get_state(self, obj):
+        return obj.state.state if obj.state else None
+    def get_district(self, obj):
+        return obj.district.district if obj.district else None
+    #######################################################
+class EmployerBusinessesDetailsSerializer(serializers.ModelSerializer):
+    country_id = serializers.PrimaryKeyRelatedField(
+        queryset=CountriesSelector.objects.all(), source='country', required=False
+    )
+    state_id = serializers.PrimaryKeyRelatedField(
+        queryset=StateMaster.objects.all(), source='state', required=False
+    )
+    district_id = serializers.PrimaryKeyRelatedField(
+        queryset=DistrictMaster.objects.all(), source='district', required=False
+    )
     class Meta:
         model = EmployerBusinessDetails
         fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
-
+###################--------------------Employer Company Policies
 class EmployerCompanyPoliciesSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployerCompanyPolicies
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at']
-
-
+################-----------------Employer Work Location
+class EmployerWorkLocationDetails(serializers.ModelSerializer):
+    country = serializers.SerializerMethodField()
+    state = serializers.SerializerMethodField()
+    district = serializers.SerializerMethodField()
+    class Meta:
+        model=EmployerWorkLocation
+        fields=['id','state','country','district','work_location_name','total_employees']
+        
+    def get_country(self, obj):
+        return obj.country.country if obj.country else None
+    def get_state(self, obj):
+        return obj.state.state if obj.state else None
+    def get_district(self, obj):
+        return obj.district.district if obj.district else None
+    
+##############-------------------Employer Email Details
 class EmployerEmailDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployerEmailsDetails
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at']
-######------------------------Employerr Details
+##########################---------------------Contract Types
+class ContractTypesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContractTypes
+        fields = '__all__'
+
+##############-----------------------------Employer Type Contract
+class EmployerTypeContractSerializer(serializers.ModelSerializer):
+    contract_under=serializers.SerializerMethodField()
+    class Meta:
+        model = EmployerrTypeContract
+        fields = ['id','contract_under']
+    def get_contract_under(self, obj):
+        return obj.contract_under.contract_type if obj.contract_under else None
+
+###################-----------------Salary Histories
+######------------------------Employerr
 class EmployerDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employeer
-        fields = ['id','name', 'company_profile', 'email', 'mobile', 'fcm_token', 'is_deleted', 'is_partnership']
+        fields = ['id', 'name', 'company_profile', 'email', 'mobile', 'fcm_token', 'is_deleted', 'is_partnership']
 
         extra_kwargs = {
             'company_profile': {'required': False},
@@ -127,6 +183,18 @@ class EmployerDetailsSerializer(serializers.ModelSerializer):
             'is_deleted': {'read_only': True},
             'is_partnership': {'read_only': True},
         }
+###############---------------------Employerr Final View
+class EmployerFinalViewSerializer(serializers.ModelSerializer):
+    business_details = EmployerBusinessDetailsSerializer(many=True, read_only=True)
+    company_policies = EmployerCompanyPoliciesSerializer(many=True, read_only=True)
+    email_details = EmployerEmailDetailsSerializer(many=True, read_only=True)
+    contract_types=EmployerTypeContractSerializer(many=True, read_only=True)
+    work_location=EmployerWorkLocationDetails(many=True, read_only=True)
+    
+    class Meta:
+        model = Employeer
+        fields = ['id', 'name', 'company_profile', 'email', 'mobile', 'fcm_token', 'is_deleted', 'is_partnership',
+                  'business_details', 'company_policies', 'email_details','contract_types','work_location']
 
 ###########################-----------------Salary Histories
 class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):

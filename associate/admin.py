@@ -35,3 +35,10 @@ class BookkycEmployeeAdmin(admin.ModelAdmin):
     search_fields = ('employee__employee_name', 'associate__name', 'slot__slot__slot')
     list_editable = ('is_deleted',)
     ordering = ('-created_at',)
+    
+##################################--------------------Contract Types-------------------------#############
+@admin.register(ContractTypes)
+class ContractTypesAdmin(admin.ModelAdmin):
+    list_display = ('id','contract_type', 'created_at', 'updated_at')
+    search_fields = ('contract_type',)
+    ordering = ('-created_at',)

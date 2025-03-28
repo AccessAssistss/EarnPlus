@@ -1,0 +1,15 @@
+######----Messages
+{otp} OTP to Login on EarnPlus # For sending Mobile Otp
+Welcome to Earnplus! For video KYC join on {date} : {link} # For sending kyc message
+
+"""
+Dear {#var#}, you have been successfully added to EarnPlus by {#var#}. 
+
+Enjoy exclusive benefits and stay updated with your progress. 
+Download the EarnPlus app now to explore more: {#var#} 
+
+For any assistance, contact us at {#var#}.""" ## First Time Employee Add
+
+
+"""Dear {{name}}, we noticed you haven’t explored the benefits of EarnPlus yet! Download the app now and unlock exclusive rewards: {{app_link}} Don’t miss out! For assistance, contact us at {{support_number}}.
+"""## Inactive users who have not download the App Yet

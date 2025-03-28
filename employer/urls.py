@@ -13,5 +13,7 @@ urlpatterns = [
     path('BulkEmployeeAdd',BulkEmployeeAdd.as_view(),name='BulkEmployeeAdd'),
     path('AddEmployeeByEmployerView',AddEmployeeByEmployerView.as_view(),name='AddEmployeeByEmployerView'),
     path('AddEmployeeByEmployerView/<str:employee_id>',AddEmployeeByEmployerView.as_view(),name='AddEmployeeByEmployerView'),
+    path('AddgetContractbyEmployer',AddgetContractbyEmployer.as_view(),name='AddgetContractbyEmployer'),
+    path('AddEmailContractWorkLocation',AddEmailContractWorkLocation.as_view(),name='AddEmailContractWorkLocation'),
     path('GetHomeScreenKPI',GetHomeScreenKPI.as_view(),name='GetHomeScreenKPI'),
     ]
